@@ -1,0 +1,165 @@
+# Support & Assistance
+
+## Overview
+
+The Authenta team is committed to helping your organization deploy, operate, and maintain the **Authenta On-Prem** system securely and efficiently.  
+This page explains how to contact our support team, what information to include when reporting issues, and the scope of assistance available.
+
+Our engineering and DevOps specialists work directly with enterprise clients to ensure that each deployment meets security, performance, and compliance standards.
+
+## Receiving Authenta Registry Credentials
+
+Authenta’s container images are hosted in a **private AWS Elastic Container Registry (ECR)** under Authenta’s own AWS account.  
+To access these images, your DevOps team will need the following information:
+
+- The **Authenta AWS Account ID**, which identifies Authenta’s private ECR registry.
+- **Read-only ECR credentials** that allow your organization to authenticate and pull container images securely.
+
+These credentials are **issued privately** to verified enterprise clients during onboarding.  
+They are distributed through a secure channel (e.g., encrypted email or customer portal) and can be rotated upon request.
+
+If your team has not yet received Authenta’s registry credentials, or if you need them reissued, please contact: **support@authenta.ai**
+
+> ⚠️ The ECR credentials provided by Authenta are read-only and scoped exclusively for image pulls. They do not grant any write, push, or management permissions to Authenta’s registry.
+
+> ⚠️ **Important:**  
+> Do not share or reuse these credentials outside your deployment environment. Authenta may rotate credentials periodically for security compliance.
+
+## 1. Support Channels
+
+| Channel                    | Purpose                                                                               | Availability                      |
+| -------------------------- | ------------------------------------------------------------------------------------- | --------------------------------- |
+| **Email Support**          | For deployment help, technical troubleshooting, and configuration questions           | Monday–Friday, 9:00–18:00 (UTC+4) |
+| **Engineering Assistance** | Direct collaboration with Authenta engineers for initial setup or complex integration | Scheduled upon request            |
+| **Security Support**       | Assistance with credential rotation, compliance checks, or vulnerability reporting    | 24/7 for priority clients         |
+| **Documentation Portal**   | Access product guides, setup steps, and updates                                       | Available anytime                 |
+
+📧 **Primary Support Email:** `support@authenta.ai`  
+🔐 **Security Contact:** `security@authenta.ai`
+
+## 2. What We Help With
+
+Authenta's support scope covers all technical aspects of deploying and managing the On-Prem edition.
+
+| Area                         | Assistance Provided                                                         |
+| ---------------------------- | --------------------------------------------------------------------------- |
+| **Installation & Setup**     | Guidance on Docker, Compose, and environment configuration                  |
+| **Network & Security**       | Verification of air-gapped or restricted setups, firewall configuration     |
+| **Integration**              | Help with RabbitMQ or API-based application integration                     |
+| **Updates & Maintenance**    | Support for version upgrades, ECR authentication, and scaling               |
+| **Performance Optimization** | Recommendations for GPU/CPU tuning, container scaling, and I/O optimization |
+| **Troubleshooting**          | Log analysis, container diagnostics, and quick remediation steps            |
+
+> 💡 For production rollouts, our engineering team can coordinate directly with your DevOps team during setup to verify security and performance configurations.
+
+## 3. Requesting Support
+
+When contacting support, please include the following details to help our engineers respond efficiently:
+
+1. **Environment Information**
+
+   - OS version and Docker / Compose versions
+   - Whether deployment is CPU or GPU mode
+   - Approximate workload (number of jobs, file sizes)
+
+2. **Issue Description**
+
+   - Clear explanation of the observed behavior
+   - Exact error messages (if any)
+   - Steps already attempted
+
+3. **Diagnostic Logs**
+
+   - Run:
+     ```bash
+     docker compose logs > authenta_support_logs.txt
+     ```
+   - Attach the file to your email
+
+4. **Contact Person**
+   - Name and role (DevOps / IT Administrator / Integration Engineer)
+
+This helps our team quickly replicate or identify the issue for resolution.
+
+## 4. Response & Resolution Policy
+
+| Priority          | Description                                                   | Initial Response       | Target Resolution      |
+| ----------------- | ------------------------------------------------------------- | ---------------------- | ---------------------- |
+| **P1 – Critical** | Deployment failure, major outage, or inference unavailability | Within 2 hours         | Within 8 hours         |
+| **P2 – High**     | Partial functionality or degraded performance                 | Within 4 hours         | Within 1 business day  |
+| **P3 – Medium**   | Configuration or non-urgent integration issue                 | Within 1 business day  | Within 3 business days |
+| **P4 – Low**      | General inquiries, documentation requests                     | Within 2 business days | As scheduled           |
+
+> Enterprise SLA options are available for 24/7 coverage — contact our team for details.
+
+## 5. Deployment Assistance Program
+
+Authenta offers **hands-on deployment support** for first-time on-prem clients.  
+This includes:
+
+- Pre-deployment environment validation
+- Secure ECR authentication and image verification
+- Step-by-step setup walkthrough (remote or guided)
+- Post-installation performance verification
+- Offline mode and network lockdown validation
+
+This ensures the system is correctly configured before it goes into production.
+
+## 6. Reporting a Security Issue
+
+If you discover a potential vulnerability or configuration risk:
+
+1. **Do not share the issue publicly**
+2. Email a detailed description to **security@authenta.ai**
+3. Include:
+   - Affected component or container name
+   - Steps to reproduce (if applicable)
+   - Environment details (no sensitive media data required)
+
+Our security response team will acknowledge your report within **24 hours** and coordinate directly for remediation.
+
+## 7. Staying Updated
+
+We recommend checking for updates periodically to ensure your deployment includes the latest model improvements and security patches.
+
+- Subscribe to release notifications via email (request via `support@authenta.ai`)
+- Enable internet access temporarily to pull the latest versions:
+  ```bash
+  docker compose pull
+  ```
+- Review the [Maintenance & Updates](/on-prem/maintenance-updates) section for detailed procedures
+
+## 8. Professional Services (Optional)
+
+For enterprise clients, Authenta provides additional services:
+
+| Service                     | Description                                                    |
+| --------------------------- | -------------------------------------------------------------- |
+| On-site / Remote Deployment | Assistance during setup and verification                       |
+| Integration Consulting      | Custom integration with internal systems or workflows          |
+| Performance Tuning          | GPU optimization, multi-runner scaling strategy                |
+| Compliance Validation       | Audit support for ISO 27001, NIST, GDPR-aligned configurations |
+
+Contact `enterprise@authenta.ai` for tailored support packages or professional service engagements.
+
+## 9. Escalation Process
+
+If an issue remains unresolved or requires urgent escalation:
+
+1. Reply to your existing support thread with "Escalate" in the subject line
+2. Include the ticket or email reference number
+3. The request will be routed directly to the Authenta Engineering Lead for review and priority handling
+
+## 10. Summary
+
+| Category             | Contact                | Notes                                             |
+| -------------------- | ---------------------- | ------------------------------------------------- |
+| General Support      | support@authenta.ai    | Technical assistance, installation, configuration |
+| Security Issues      | security@authenta.ai   | Vulnerability or credential-related reports       |
+| Enterprise Services  | enterprise@authenta.ai | Deployment, scaling, and compliance services      |
+| Documentation Portal | docs.authenta.ai       | Full setup and configuration guides               |
+
+## Thank You
+
+Authenta was built to deliver secure, AI-powered media authenticity detection for enterprise environments.  
+Our team is here to ensure your deployment remains stable, secure, and fully compliant — now and in the future.

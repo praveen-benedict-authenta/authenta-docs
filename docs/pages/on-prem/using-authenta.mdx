@@ -1,0 +1,414 @@
+# Using Authenta
+
+## Overview
+
+This guide explains how to use Authenta's detection services through various integration methods.
+
+## Integration Methods
+
+### 1. RabbitMQ Direct Integration
+
+Connect and send tasks to RabbitMQ:
+
+```javascript
+import * as amqp from 'amqplib';
+
+const RABBITMQ_URL = 'amqp://user:pass@rabbitmq:5672/';
+
+async function sendDetectionTask(inputPath, outputType = 'result') {
+  // Connect to RabbitMQ
+  const conn = await amqp.connect(RABBITMQ_URL);
+  const ch = await conn.createChannel();
+
+  // Ensure queues exist
+  await ch.assertQueue('task_queue', { durable: true });
+  await ch.assertQueue('task_response', { durable: true });
+
+  // Build the job message
+  const jobMsg = {
+    id: `job-${Math.floor(Math.random() * 10000)}`,
+    version: 1,
+    op: {
+      name: inputPath.endsWith('.mp4') ? 'df-1' : 'ac-1',
+      version: '1.0.0',
+    },
+    input: {
+      mimeType: 'application/octet-stream',
+      provider: 'local_dir',
+      path: inputPath,
+    },
+    outputs: [
+      {
+        kind: 'result',
+        mimeType: 'application/json',
+        provider: 'local_dir',
+        path: './shared/result.json',
+      },
+    ],
+    callback: {
+      mode: 'rabbitmq',
+      replyTo: 'task_response',
+    },
+  };
+
+  // Add heatmap output if requested
+  if (outputType === 'result + heatmaps') {
+    const heatmapOutput = {
+      kind: 'heatmaps',
+      mimeType: jobMsg.op.name === 'df-1' ? 'video/mp4' : 'image/png',
+      provider: 'local_dir',
+      path: './shared/heatmaps-results',
+      filename: jobMsg.op.name === 'df-1' ? 'video-heatmap-{faceid}{ext}' : 'processed-image{ext}',
+    };
+    jobMsg.outputs.push(heatmapOutput);
+  }
+
+  // Send the task
+  ch.sendToQueue('task_queue', Buffer.from(JSON.stringify(jobMsg)), { persistent: true });
+
+  return jobMsg.id;
+}
+```
+
+### 2. Demo Application API
+
+Use our Node.js demo application:
+
+```bash
+# Start the demo app
+cd demo-app
+npm install
+npm start
+
+# Send a detection request
+curl -X POST http://localhost:3000/detect \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image_path": "/path/to/image.jpg",
+    "detection_type": "deepfake"
+  }'
+```
+
+### 3. Direct File Processing
+
+Process files through shared volume:
+
+1. Place input file in `/opt/authenta/data/input/`
+2. Create JSON task file in `/opt/authenta/data/tasks/`
+3. Monitor `/opt/authenta/data/results/` for output
+
+## Task Types
+
+### Deepfake Detection (DF-1)
+
+For video input files:
+
+```json
+{
+  "id": "job-1234",
+  "version": 1,
+  "op": {
+    "name": "df-1",
+    "version": "1.0.0"
+  },
+  "input": {
+    "mimeType": "application/octet-stream",
+    "provider": "local_dir",
+    "path": "./shared/video.mp4"
+  },
+  "outputs": [
+    {
+      "kind": "result",
+      "mimeType": "application/json",
+      "provider": "local_dir",
+      "path": "./shared/result.json"
+    },
+    {
+      "kind": "heatmaps",
+      "mimeType": "video/mp4",
+      "provider": "local_dir",
+      "path": "./shared/heatmaps-results",
+      "filename": "video-heatmap-{faceid}{ext}"
+    }
+  ],
+  "callback": {
+    "mode": "rabbitmq",
+    "replyTo": "task_response"
+  }
+}
+```
+
+### AI Content Detection (AC-1)
+
+For image input files:
+
+```json
+{
+  "id": "job-5678",
+  "version": 1,
+  "op": {
+    "name": "ac-1",
+    "version": "1.0.0"
+  },
+  "input": {
+    "mimeType": "application/octet-stream",
+    "provider": "local_dir",
+    "path": "./shared/image.jpg"
+  },
+  "outputs": [
+    {
+      "kind": "result",
+      "mimeType": "application/json",
+      "provider": "local_dir",
+      "path": "./shared/result.json"
+    },
+    {
+      "kind": "heatmaps",
+      "mimeType": "image/png",
+      "provider": "local_dir",
+      "path": "./shared/heatmaps-results",
+      "filename": "processed-image{ext}"
+    }
+  ],
+  "callback": {
+    "mode": "rabbitmq",
+    "replyTo": "task_response"
+  }
+}
+```
+
+## Processing Options
+
+| Option      | Description                                    | Type                  |
+| ----------- | ---------------------------------------------- | --------------------- |
+| `heatmaps`  | Generate visual heatmaps for detection regions | Optional output       |
+| `local_dir` | Process files from shared directory            | Default provider      |
+| `rabbitmq`  | Use RabbitMQ for task responses                | Default callback mode |
+
+## Result Format
+
+```json
+{
+  "task_id": "task_123",
+  "status": "completed",
+  "results": {
+    "detection_score": 0.95,
+    "detection_label": "deepfake",
+    "confidence_level": "high",
+    "analysis_details": {
+      "artifacts_detected": true,
+      "manipulation_type": "face_swap",
+      "affected_regions": [...]
+    },
+    "processing_time": 1.23,
+    "model_version": "2.1.0"
+  },
+  "output_files": {
+    "visualization": "/opt/authenta/data/results/task_123/viz.png",
+    "detailed_report": "/opt/authenta/data/results/task_123/report.json"
+  }
+}
+```
+
+## Best Practices
+
+1. **Task Management**
+
+   - Generate unique task IDs
+   - Include callback URLs for async processing
+   - Set appropriate timeouts
+
+2. **Resource Optimization**
+
+   - Batch similar tasks together
+   - Monitor queue length
+   - Scale workers based on load
+
+3. **Error Handling**
+   - Implement retry logic
+   - Monitor task status
+   - Log failed tasks
+
+## Code Examples
+
+### Node.js Integration
+
+Complete example showing the full workflow:
+
+```javascript
+import * as amqp from 'amqplib';
+import * as path from 'path';
+
+const RABBITMQ_URL = 'amqp://user:pass@rabbitmq:5672/';
+const SHARED_DIR = path.resolve('./shared/');
+
+// Process a detection task
+async function processDetectionTask(inputPath, outputType = 'result') {
+  // Connect to RabbitMQ
+  const conn = await amqp.connect(RABBITMQ_URL);
+  const ch = await conn.createChannel();
+
+  await ch.assertQueue('task_queue', { durable: true });
+  await ch.assertQueue('task_response', { durable: true });
+
+  // Build the job message
+  const jobMsg = buildJobMsg({
+    op: inputPath.endsWith('.mp4') ? 'df-1' : 'ac-1',
+    inputPath: inputPath,
+    outputType: outputType,
+  });
+
+  // Send task and wait for response
+  console.log('Publishing task to task_queue...');
+  ch.sendToQueue('task_queue', Buffer.from(JSON.stringify(jobMsg)), { persistent: true });
+
+  // Wait for response
+  console.log('Waiting for response...');
+  const result = await new Promise((resolve) => {
+    ch.consume('task_response', (msg) => {
+      if (msg !== null) {
+        const response = JSON.parse(msg.content.toString());
+        if (response.id === jobMsg.id) {
+          ch.ack(msg);
+          resolve(response);
+        } else {
+          ch.ack(msg);
+        }
+      }
+    });
+  });
+
+  // Cleanup
+  await ch.close();
+  await conn.close();
+
+  return result;
+}
+
+// Helper to build job message
+function buildJobMsg(params) {
+  const outputs = [
+    {
+      kind: 'result',
+      mimeType: 'application/json',
+      provider: 'local_dir',
+      path: './shared/result.json',
+    },
+  ];
+
+  if (params.outputType === 'result + heatmaps') {
+    outputs.push({
+      kind: 'heatmaps',
+      mimeType: params.op === 'df-1' ? 'video/mp4' : 'image/png',
+      provider: 'local_dir',
+      path: './shared/heatmaps-results',
+      filename: params.op === 'df-1' ? 'video-heatmap-{faceid}{ext}' : 'processed-image{ext}',
+    });
+  }
+
+  return {
+    id: `job-${Math.floor(Math.random() * 10000)}`,
+    version: 1,
+    op: { name: params.op, version: '1.0.0' },
+    input: {
+      mimeType: 'application/octet-stream',
+      provider: 'local_dir',
+      path: params.inputPath,
+    },
+    outputs,
+    callback: { mode: 'rabbitmq', replyTo: 'task_response' },
+  };
+}
+
+// Example usage
+try {
+  const result = await processDetectionTask('./shared/video.mp4', 'result + heatmaps');
+  console.log('Detection result:', result);
+} catch (err) {
+  console.error('Error:', err);
+}
+```
+
+```
+
+## File Management
+
+### Input Directory Structure
+```
+
+/input
+/images - fake.jpg - real.jpg
+/videos - fake.mp4 - real.mp4
+
+```
+
+### Shared Directory
+```
+
+/shared
+
+- result.json # Detection results
+  /heatmaps-results # Visual detection maps
+
+````
+
+## Monitoring & Troubleshooting
+
+### Queue Monitoring
+1. **RabbitMQ Queues**
+   - `task_queue`: For submitting detection jobs
+   - `task_response`: For receiving results
+
+2. **Dashboard Access**
+   - URL: `http://localhost:15672`
+   - Default credentials: `user`/`pass`
+
+### Error Handling
+
+The system implements automatic reconnection with exponential backoff:
+```javascript
+async function runWithReconnect() {
+    while (true) {
+        try {
+            await main();
+            break;
+        } catch (err) {
+            console.error('RabbitMQ error, retrying in 5s:', err);
+            await new Promise(res => setTimeout(res, 5000));
+        }
+    }
+}
+````
+
+### Common Issues
+
+1. **Connection Issues**
+
+   ```bash
+   # Check RabbitMQ status
+   docker compose ps rabbitmq
+
+   # View RabbitMQ logs
+   docker compose logs -f rabbitmq
+   ```
+
+2. **File Access**
+
+   ```bash
+   # Verify shared directory
+   ls -la ./shared
+
+   # Check permissions
+   sudo chown -R your-user:docker ./shared
+   ```
+
+3. **Task Processing**
+   - Verify input file exists in shared directory
+   - Check task runner logs for errors
+   - Ensure GPU is available (for GPU profile)
+
+## Next Steps
+
+- Review [maintenance procedures](/on-prem/maintenance-updates)
+- Learn about [security best practices](/on-prem/security-compliance)
+- Get [support](/on-prem/support)

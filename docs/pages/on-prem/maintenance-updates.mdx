@@ -1,0 +1,309 @@
+# Maintenance & Updates
+
+## Overview
+
+This guide provides best practices for maintaining, monitoring, and updating **Authenta On-Prem** after deployment.  
+Authenta is designed for long-term, stable operation in air-gapped environments with minimal maintenance overhead.  
+You'll only need to enable temporary internet access when applying updates or pulling new container versions.
+
+## 1. Log Management
+
+Authenta emits structured logs in **JSON format**, making them easy to parse and forward to your internal log collection systems.
+
+### View Logs in Real Time
+
+```bash
+docker logs -f ml-task-runner-gpu
+# or
+docker logs -f ml-task-runner-cpu
+```
+
+You'll see entries such as:
+
+```json
+// Task submission
+{
+  "id": "job-1234",
+  "version": 1,
+  "op": {
+    "name": "df-1",
+    "version": "1.0.0"
+  },
+  "input": {
+    "mimeType": "application/octet-stream",
+    "provider": "local_dir",
+    "path": "./shared/fake.mp4"
+  },
+  "outputs": [
+    {
+      "kind": "result",
+      "mimeType": "application/json",
+      "provider": "local_dir",
+      "path": "./shared/result.json"
+    },
+    {
+      "kind": "heatmaps",
+      "mimeType": "video/mp4",
+      "provider": "local_dir",
+      "path": "./shared/heatmaps-results",
+      "filename": "video-heatmap-{faceid}{ext}"
+    }
+  ]
+}
+
+// Task response
+{
+  "id": "job-1234",
+  "status": "completed",
+  "result": {
+    "confidence": 0.9821,
+    "classification": "deepfake",
+    "processedAt": "2025-11-08T12:34:56Z"
+  }
+}
+```
+
+### Save Logs to Host Directory
+
+You can map container logs to a persistent host directory by modifying your `docker-compose.yml`:
+
+```yaml
+services:
+  ml-task-runner-gpu:
+    volumes:
+      - /opt/authenta/logs:/app/logs
+```
+
+This allows you to:
+
+- Retain logs across container restarts
+- Integrate with centralized logging systems (ELK, Splunk, Datadog, Loki, etc.)
+- Perform local audits and monitoring
+
+### Log Format and Environment Settings
+
+The following environment variables control logging and application behavior:
+
+| Variable         | Description                | Default                           |
+| ---------------- | -------------------------- | --------------------------------- |
+| `LOG_FORMAT`     | Log output format          | `json`                            |
+| `LOG_LEVEL`      | Log verbosity level        | `INFO`                            |
+| `JOBS_ROOT`      | Directory for job files    | `/app/jobs`                       |
+| `RUN_MODE`       | Application execution mode | `production`                      |
+| `RABBITMQ_QUEUE` | Main task queue name       | `task_queue`                      |
+| `RABBITMQ_URL`   | RabbitMQ connection URL    | `amqp://user:pass@rabbitmq:5672/` |
+
+Logs include:
+
+- Job submissions and responses
+- Task processing status
+- Model inference results
+- Error conditions and exceptions
+- RabbitMQ connection states
+
+## 2. Monitoring & Health Checks
+
+To ensure continuous operation, periodically verify container and service status.
+
+### Check Container Status
+
+```bash
+docker ps
+```
+
+Expected output:
+
+```
+rabbitmq                 Up  (port 5672, 15672)
+ml-task-runner-gpu       Up
+```
+
+### Inspect RabbitMQ
+
+- Access the management dashboard:
+  👉 http://localhost:15672
+- Monitor the following queues:
+  - `task_queue`: Main queue for processing requests
+  - `task_response`: Queue for processing results
+- Verify active connections from:
+  - ML Task Runners (consumers)
+  - Client applications (producers)
+- Check message patterns:
+  - Task submission format
+  - Response message structure
+  - Error handling and retries
+
+### Check System Logs
+
+Inspect system-level Docker logs for any restarts or errors:
+
+```bash
+sudo journalctl -u docker --since "1 hour ago"
+```
+
+## 3. Scaling & Performance Optimization
+
+Authenta supports horizontal scaling for increased throughput.
+
+### Add More Inference Containers
+
+You can run multiple task runner instances concurrently:
+
+```bash
+docker compose up -d --scale ml-task-runner-gpu=3
+```
+
+RabbitMQ automatically balances incoming tasks among all active consumers.
+
+> ⚠️ Ensure you have enough hardware resources (CPU, GPU, RAM) before scaling up.
+
+### Scale Down or Restart
+
+To reduce resources or reset workers:
+
+```bash
+docker compose down
+docker compose up -d --scale ml-task-runner-gpu=1
+```
+
+Scaling can be adjusted dynamically without data loss.
+
+## 4. Updating Authenta
+
+Authenta releases updates periodically that include:
+
+- Improved AI models
+- Security and stability patches
+- Optimized performance for CPU/GPU inference
+
+Because the system is offline, updates require temporary internet access.
+
+### Steps to Update
+
+1. Enable Internet Access on the host
+2. Re-authenticate to the private ECR:
+   > Before updating, ensure you have the latest Authenta-issued ECR credentials. These credentials authenticate against Authenta’s private AWS Account ID and are required to pull updated images.
+   ```bash
+   aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
+   ```
+3. Pull Updated Images:
+   ```bash
+   docker compose pull
+   ```
+4. Restart Services:
+   ```bash
+   docker compose down && docker compose up -d
+   ```
+5. Disable Internet Access again for air-gapped operation
+
+### Verifying the Update
+
+Check image versions:
+
+```bash
+docker images | grep authenta
+```
+
+Example output:
+
+```bash
+authenta/ml-task-runner   v1.2-gpu   <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com   ...
+authenta/ml-task-runner   v1.2-cpu   <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com   ...
+```
+
+If version numbers reflect the update, deployment is complete.
+
+## 5. ECR Credentials Management
+
+Authenta provides read-only AWS ECR credentials for image access.
+These can safely be:
+
+- Stored in your CI/CD or secret manager
+- Revoked and reissued after initial deployment if required
+
+Credentials are only needed when:
+
+- Pulling images for the first time
+- Performing updates
+
+They are not required for day-to-day operation.
+
+## 6. Backup & Recovery
+
+### Back Up Important Directories
+
+| Path                               | Purpose                               |
+| ---------------------------------- | ------------------------------------- |
+| `/opt/authenta/data`               | Input and result files                |
+| `/opt/authenta/logs`               | Persistent logs                       |
+| `/opt/authenta/docker-compose.yml` | Configuration file                    |
+| `/opt/authenta/.env`               | Environment variables and credentials |
+
+> 💡 Regular backups ensure quick recovery in case of system failure.
+
+### Restore Procedure
+
+1. Restore the directories from your backup
+2. Reinstall Docker if needed
+3. Run:
+   ```bash
+   docker compose up -d
+   ```
+   to reinitialize all services with the preserved configuration
+
+## 7. Resource Cleanup
+
+To remove unused or old images and free disk space:
+
+```bash
+docker image prune -a
+```
+
+To clear stopped containers and unused volumes:
+
+```bash
+docker system prune -a --volumes
+```
+
+> ⚠️ Ensure you have backups before pruning. These commands delete unreferenced data permanently.
+
+## 8. Security Maintenance
+
+Authenta On-Prem is fully self-contained and runs offline, but it's still recommended to:
+
+- Restrict RabbitMQ dashboard access to admin IPs only
+- Rotate passwords periodically (defined in `.env`)
+- Keep Docker and host OS up to date with security patches
+- Run containers as non-root users if your security policy requires it
+
+> 🔐 No external telemetry, logging, or network connections are made — Authenta operates fully within your environment.
+
+## 9. Troubleshooting Common Issues
+
+| Symptom                       | Possible Cause                              | Recommended Action                                          |
+| ----------------------------- | ------------------------------------------- | ----------------------------------------------------------- |
+| Containers exit unexpectedly  | Insufficient resources or permission issues | Check docker logs and host disk/memory usage                |
+| Queue not visible in RabbitMQ | Misconfigured queue name                    | Verify `.env` → `RABBITMQ_QUEUE` matches `task_queue`       |
+| Inference jobs not processing | Task runner not connected                   | Restart ml-task-runner service                              |
+| GPU not detected              | Missing or incompatible drivers             | Reinstall NVIDIA drivers and container toolkit              |
+| Update fails                  | Old credentials or network block            | Re-authenticate and re-enable outbound internet temporarily |
+
+## 10. Lifecycle Checklist
+
+| Maintenance Task  | Frequency               | Action                                               |
+| ----------------- | ----------------------- | ---------------------------------------------------- |
+| Log review        | Weekly                  | Inspect logs for errors or job anomalies             |
+| System backup     | Weekly                  | Backup `/opt/authenta/data` and `/opt/authenta/logs` |
+| Update pull       | Quarterly or as advised | Temporarily enable internet and update images        |
+| Password rotation | Quarterly               | Update RabbitMQ and `.env` credentials               |
+| Resource cleanup  | Quarterly               | Prune unused images and containers                   |
+
+## Summary
+
+| Aspect             | Description                                                |
+| ------------------ | ---------------------------------------------------------- |
+| Logs               | Structured JSON format, can be exported to central systems |
+| Updates            | One-time internet required to pull new images              |
+| Scaling            | Add more task runners for parallel processing              |
+| Security           | Offline mode, no telemetry, configurable credentials       |
+| Maintenance Effort | Minimal — designed for stable long-term operation          |

@@ -1,0 +1,19 @@
+{
+  "name": "authenta-on-prem",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Authenta On-Prem Demo",
+  "license": "ISC",
+  "description": "Demo Node.js project for Authenta on-prem artifacts",
+  "dependencies": {
+    "amqplib": "^0.10.3",
+    "inquirer": "^9.1.5"
+  },
+  "devDependencies": {
+    "nodemon": "3.1.10"
+  }
+}

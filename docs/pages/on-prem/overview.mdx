@@ -1,0 +1,52 @@
+# Overview
+
+## What is Authenta?
+
+**Authenta** is an AI-powered media authenticity platform that detects **deepfakes, AI-generated images, and image forgeries** with industry-leading precision.  
+It helps organizations verify the integrity of visual content before publication, storage, or legal processing.
+
+The **Authenta On-Prem Edition** is designed for enterprises and government agencies that require **complete data control**.  
+It can be deployed entirely inside your infrastructure — operating **fully offline** once installed — ensuring that sensitive media never leaves your network.
+
+Authenta leverages deep neural models trained on large-scale datasets to identify manipulation patterns in both video and image files.  
+It integrates easily with your internal applications through **RabbitMQ** or a lightweight **REST adapter**.
+
+## Key Features
+
+- 🔒 **Data Sovereignty** — All media files, results, and logs stay within your infrastructure.
+- 🧠 **AI-Based Detection** — Specialized models detect deepfakes, synthetic images, and forged regions.
+- ⚙️ **Flexible Deployment** — Delivered as Docker containers with support for CPU and GPU profiles.
+- 🚫 **Offline Operation** — Requires internet only once for image pull; operates fully air-gapped afterward.
+- 🧩 **Modular Components** — RabbitMQ message broker, ML inference runner, and shared storage volume.
+- 📈 **Scalable by Design** — Deploy multiple inference containers for parallel job processing.
+- 🔐 **No Telemetry** — No external communication, tracking, or analytics.
+- 🧾 **Compliant** — Meets on-prem data isolation and enterprise security standards.
+
+## Supported Models
+
+| Model    | Input Type | Description                                             | Status |
+| -------- | ---------- | ------------------------------------------------------- | ------ |
+| **DF-1** | Video      | Detects deepfake or manipulated faces in video content. | Stable |
+| **AC-1** | Image      | Determines if an image was AI-generated or synthetic.   | Stable |
+| **FD-1** | Image      | Detects forged or tampered regions within an image.     | Beta   |
+
+Each model can be selected dynamically when publishing a task to RabbitMQ.  
+All inference operations occur locally within your environment — no cloud calls or external processing are involved.
+
+## Offline & Secure Operation
+
+Authenta’s architecture is designed for **air-gapped, high-security environments**:
+
+- All components (RabbitMQ, inference runner, shared storage) run locally as Docker services.
+- The system communicates only within your internal network.
+- No telemetry, logging, or model updates are sent externally.
+- Internet connectivity is required **only once** — to pull container images from Authenta’s private AWS ECR.
+- After setup, the system can function indefinitely offline.
+
+You may safely **disable outbound network access** or enforce firewall restrictions once setup is complete.
+
+## Next Steps
+
+- [View Architecture →](./architecture.mdx)
+- [Prepare Your Environment →](./prerequisites.mdx)
+- [Start Installation →](./installation-setup.mdx)

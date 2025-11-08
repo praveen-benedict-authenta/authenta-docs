@@ -1,0 +1,53 @@
+x-ml-task-runner-configs: &ml-task-runner-configs
+  depends_on:
+    rabbitmq:
+      condition: service_healthy
+  environment:
+    LOG_FORMAT: json
+    RABBITMQ_URL: amqp://user:pass@rabbitmq:5672/
+    INFRA_TYPE: on-prem
+    LOG_LEVEL: INFO
+    JOBS_ROOT: /app/jobs
+    RABBITMQ_QUEUE: task_queue
+    RUN_MODE: production
+  volumes:
+    - ./shared:/app/shared
+
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: pass
+    healthcheck:
+      test: ['CMD-SHELL', 'rabbitmq-diagnostics -q ping']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  ml-task-runner-gpu:
+    <<: *ml-task-runner-configs
+    platform: linux/arm64
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/authena/ml-task-runner:v1-gpu
+    profiles: ['gpu', 'default']
+    runtime: nvidia
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  ml-task-runner-cpu:
+    <<: *ml-task-runner-configs
+    platform: linux/arm64
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/authena/ml-task-runner:v1-cpu
+    profiles: ['cpu']

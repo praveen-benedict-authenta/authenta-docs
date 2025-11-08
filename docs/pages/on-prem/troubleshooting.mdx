@@ -1,0 +1,302 @@
+# Troubleshooting
+
+## Overview
+
+This page provides solutions to the most common issues you may encounter while deploying or operating **Authenta On-Prem**.  
+It covers installation, container runtime, RabbitMQ configuration, GPU setup, and update-related problems.
+
+All issues can be diagnosed locally — no external internet or cloud dependencies are required.
+
+## 1. Quick Diagnostic Checklist
+
+Before diving into specific problems, verify the following:
+
+| Check                  | Command                        | Expected Output                             |
+| ---------------------- | ------------------------------ | ------------------------------------------- |
+| Docker running         | `systemctl status docker`      | Status: **active (running)**                |
+| Containers active      | `docker ps`                    | RabbitMQ + ML task runner containers listed |
+| Disk space             | `df -h`                        | Sufficient free space (≥20 GB)              |
+| Shared volume exists   | `ls /opt/authenta/data`        | Directory accessible                        |
+| RabbitMQ UI accessible | Visit `http://localhost:15672` | Dashboard loads successfully                |
+
+If all checks pass but the issue persists, refer to the sections below.
+
+## 2. Docker & Container Issues
+
+### 🐳 Containers Not Starting
+
+**Symptom:**
+
+```bash
+docker compose up -d
+# -> error: service failed to start
+```
+
+**Possible Causes:**
+
+- Invalid Docker Compose syntax
+- Missing shared volume directories
+- Port conflicts with other services
+
+**Resolution:**
+
+1. Validate compose syntax:
+
+```bash
+docker compose config
+```
+
+2. Ensure directories exist:
+
+```bash
+sudo mkdir -p /opt/authenta/data /opt/authenta/logs
+```
+
+3. Check port usage:
+
+```bash
+sudo lsof -i :5672
+sudo lsof -i :15672
+```
+
+### ⚙️ Containers Exit Immediately
+
+**Symptom:**
+
+```bash
+docker ps -a
+# shows ml-task-runner exited with code 1
+```
+
+**Resolution:**
+View logs for details:
+
+```bash
+docker logs ml-task-runner-gpu
+```
+
+Common causes:
+
+- Missing environment variables
+- Incorrect data directory mapping
+- Corrupted Docker image
+
+Try:
+
+```bash
+docker compose down
+docker compose pull
+docker compose up -d
+```
+
+## 3. RabbitMQ Connectivity Issues
+
+### 🧩 RabbitMQ Not Reachable
+
+**Symptom:**
+Client app cannot connect to RabbitMQ (ECONNREFUSED or Connection reset).
+
+**Possible Causes:**
+
+- RabbitMQ container not running
+- Wrong hostname or credentials
+- Port 5672 blocked by firewall
+
+**Resolution:**
+
+1. Verify container status:
+
+```bash
+docker ps | grep rabbitmq
+```
+
+2. Access dashboard:
+
+```
+http://localhost:15672
+```
+
+3. Check credentials in `.env`:
+
+```bash
+RABBITMQ_USER=user
+RABBITMQ_PASS=pass
+```
+
+4. Test AMQP connection:
+
+```bash
+telnet localhost 5672
+```
+
+5. If needed, restart RabbitMQ:
+
+```bash
+docker compose restart rabbitmq
+```
+
+### 🚫 Queue Missing or Jobs Not Processed
+
+**Symptom:**
+Tasks published, but not consumed by the ML task runner.
+
+**Resolution:**
+
+1. Open the RabbitMQ dashboard → Queues tab
+2. Verify that a queue named `task_queue` exists
+3. If missing, create it manually:
+
+```bash
+docker exec -it rabbitmq rabbitmqadmin declare queue name=task_queue durable=true
+```
+
+4. Confirm the task runner is subscribed (should show as 1 consumer)
+5. Restart if needed:
+
+```bash
+docker compose down && docker compose up -d
+```
+
+## 4. ML Task Runner & Model Issues
+
+### 🧠 Model Not Loading
+
+**Symptom:**
+Logs show:
+
+```json
+{ "level": "error", "msg": "Model DF-1 not found" }
+```
+
+**Resolution:**
+
+1. Confirm image tag is correct (v1-gpu or v1-cpu)
+2. Re-pull container images:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+3. Ensure correct profile:
+
+```bash
+docker compose --profile gpu up -d
+```
+
+### ⚡ GPU Not Detected
+
+**Symptom:**
+Logs show:
+
+```json
+{ "level": "warn", "msg": "No GPU available, switching to CPU" }
+```
+
+**Possible Causes:**
+
+- Missing NVIDIA drivers
+- NVIDIA Container Toolkit not installed
+- Docker daemon not restarted after installation
+
+**Resolution:**
+
+1. Verify drivers:
+
+```bash
+nvidia-smi
+```
+
+2. Install toolkit:
+
+```bash
+sudo apt-get install -y nvidia-container-toolkit
+sudo systemctl restart docker
+```
+
+3. Test GPU:
+
+```bash
+docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi
+```
+
+4. Restart Authenta:
+
+```bash
+docker compose down && docker compose --profile gpu up -d
+```
+
+## 5. Performance & Scaling Issues
+
+### 🐢 Inference Too Slow
+
+**Possible Causes:**
+
+- CPU mode running instead of GPU
+- Insufficient memory
+- Heavy concurrent load
+
+**Fix:**
+
+1. Switch to GPU profile:
+
+```bash
+docker compose --profile gpu up -d
+```
+
+2. Increase task runners:
+
+```bash
+docker compose up -d --scale ml-task-runner-gpu=3
+```
+
+3. Monitor resources:
+
+```bash
+docker stats
+```
+
+## 6. Logs & Debugging Commands
+
+Useful commands for investigating issues:
+
+| Purpose               | Command                                        |
+| --------------------- | ---------------------------------------------- |
+| View all containers   | `docker ps`                                    |
+| View RabbitMQ logs    | `docker logs rabbitmq`                         |
+| View ML runner logs   | `docker logs ml-task-runner-gpu`               |
+| Inspect container     | `docker inspect <container_name>`              |
+| Check Docker network  | `docker network ls`                            |
+| Enter container shell | `docker exec -it ml-task-runner-gpu /bin/bash` |
+| Validate compose      | `docker compose config`                        |
+| Restart all services  | `docker compose restart`                       |
+
+## 7. Contacting Support
+
+If your issue persists:
+
+1. Collect logs:
+
+```bash
+docker compose logs > authenta_support_logs.txt
+```
+
+2. Include:
+
+   - OS version
+   - Docker and Compose versions
+   - Short issue description
+
+3. Send to: support@authenta.ai
+
+## Summary
+
+| Issue Category          | Typical Cause                     | Resolution                 |
+| ----------------------- | --------------------------------- | -------------------------- |
+| Containers not starting | Missing volumes / ports in use    | Validate compose config    |
+| Queue not visible       | Misconfiguration or missing queue | Recreate via dashboard     |
+| Jobs not processed      | No active task runner             | Restart container          |
+| No result output        | Wrong volume mapping              | Fix path + permissions     |
+| GPU not detected        | Missing toolkit or driver         | Reinstall and restart      |
+| ECR auth fails          | Expired credentials               | Re-login and retry         |
+| Slow performance        | CPU mode or low resources         | Use GPU / scale containers |

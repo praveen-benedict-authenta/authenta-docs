@@ -1,0 +1,171 @@
+# Configuration
+
+## Overview
+
+Once Authenta On-Prem is successfully deployed, you can tailor its configuration to match your environment, network policies, and workload requirements.  
+This guide explains how to customize Docker Compose profiles, environment variables, message schemas, and data directories.
+
+Authenta's configuration is lightweight and fully contained within its deployment package — no internet connection or cloud sync is required.
+
+## 1. Docker Compose Profiles
+
+Authenta supports two main execution profiles:
+
+| Profile | Description                                 | Container            | Use Case                                             |
+| ------- | ------------------------------------------- | -------------------- | ---------------------------------------------------- |
+| **gpu** | Uses NVIDIA GPU for accelerated inference   | `ml-task-runner-gpu` | Default for production systems with GPU availability |
+| **cpu** | Runs entirely on CPU without GPU dependency | `ml-task-runner-cpu` | For testing or environments without GPU              |
+
+Start either mode using:
+
+```bash
+# GPU mode (default)
+docker compose --profile gpu up -d
+
+# CPU-only mode
+docker compose --profile cpu up -d
+```
+
+## 2. Base Configuration
+
+The core configuration is defined using YAML anchors for reusability:
+
+```yaml
+x-ml-task-runner-configs: &ml-task-runner-configs
+  depends_on:
+    rabbitmq:
+      condition: service_healthy
+  environment:
+    LOG_FORMAT: json
+    RABBITMQ_URL: amqp://user:pass@rabbitmq:5672/
+    INFRA_TYPE: on-prem
+    LOG_LEVEL: INFO
+    JOBS_ROOT: /app/jobs
+    RABBITMQ_QUEUE: task_queue
+    RUN_MODE: production
+  volumes:
+    - ./shared:/app/shared
+```
+
+## 3. Service Configuration
+
+### RabbitMQ Settings
+
+| Parameter               | Description    | Default                           |
+| ----------------------- | -------------- | --------------------------------- |
+| `RABBITMQ_DEFAULT_USER` | Admin username | `user`                            |
+| `RABBITMQ_DEFAULT_PASS` | Admin password | `pass`                            |
+| `RABBITMQ_URL`          | Connection URL | `amqp://user:pass@rabbitmq:5672/` |
+| `RABBITMQ_QUEUE`        | Queue name     | `task_queue`                      |
+
+RabbitMQ configuration in docker-compose:
+
+```yaml
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: pass
+    healthcheck:
+      test: ['CMD-SHELL', 'rabbitmq-diagnostics -q ping']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+```
+
+### ML Task Runner Settings
+
+| Parameter    | Description         | Default      |
+| ------------ | ------------------- | ------------ |
+| `LOG_FORMAT` | Log output format   | `json`       |
+| `LOG_LEVEL`  | Logging verbosity   | `INFO`       |
+| `INFRA_TYPE` | Infrastructure type | `on-prem`    |
+| `JOBS_ROOT`  | Job files location  | `/app/jobs`  |
+| `RUN_MODE`   | Execution mode      | `production` |
+
+### GPU-Specific Settings
+
+For GPU mode, additional configurations are required:
+
+```yaml
+services:
+  ml-task-runner-gpu:
+    <<: *ml-task-runner-configs
+    platform: linux/arm64
+    image: <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/authena/ml-task-runner:v1-gpu
+    profiles: ['gpu', 'default']
+    runtime: nvidia
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+```
+
+> Replace \<AUTHENTA_ACCOUNT_ID\> with the value provided by Authenta Support. This ID refers to Authenta’s private AWS account where the official container images are hosted.
+
+## 4. Data Management
+
+### Shared Volume Structure
+
+```
+./shared/
+  ├── result.json         # Detection results
+  └── heatmaps-results/   # Visual detection maps
+```
+
+### Volume Configuration
+
+```yaml
+volumes:
+  - ./shared:/app/shared # Maps host directory to container
+```
+
+## 5. Scaling Configuration
+
+To run multiple inference containers:
+
+```bash
+# Scale GPU workers
+docker compose up -d --scale ml-task-runner-gpu=3
+
+# Scale CPU workers
+docker compose up -d --scale ml-task-runner-cpu=2
+```
+
+> ⚠️ Ensure sufficient hardware resources before scaling up.
+
+## 6. Health Checks
+
+RabbitMQ health monitoring is configured by default:
+
+```yaml
+healthcheck:
+  test: ['CMD-SHELL', 'rabbitmq-diagnostics -q ping']
+  interval: 5s
+  timeout: 5s
+  retries: 20
+  start_period: 10s
+```
+
+## Next Steps
+
+- Learn how to [use Authenta](/on-prem/using-authenta)
+- Set up [monitoring](/on-prem/maintenance-updates)
+- Review [security best practices](/on-prem/security-compliance)
+
+## Next Steps
+
+- Learn how to [use Authenta](/on-prem/using-authenta)
+- Set up [monitoring](/on-prem/maintenance-updates)
+- Review [security best practices](/on-prem/security-compliance)

@@ -1,0 +1,100 @@
+# Installation Setup
+
+This guide will walk you through the process of installing Authenta On-Prem in your environment.
+
+## Prerequisites Check
+
+Before proceeding, ensure you have met all [prerequisites](/on-prem/prerequisites):
+
+- Hardware requirements
+- Software dependencies
+- Network access
+- Storage setup
+- Authenta Registry Credentials
+
+## Installation Steps
+
+### 1. Prepare Environment
+
+```bash
+# Create required directories
+sudo mkdir -p /opt/authenta/{data,logs}
+sudo chmod 775 /opt/authenta/data /opt/authenta/logs
+```
+
+### 2. Configure AWS Credentials
+
+```bash
+# Configure AWS CLI for ECR access
+aws configure set aws_access_key_id <AWS_ACCESS_KEY>
+aws configure set aws_secret_access_key <AWS_SECRET_ACCESS_KEY>
+aws configure set default.region us-east-1
+```
+
+> Tip: Replace \<AWS_ACCESS_KEY\> and \<AWS_SECRET_ACCESS_KEY\> with the value provided by Authenta Support.
+
+> Note: Authenta provides its AWS Account ID and **read-only ECR credentials** privately to verified enterprise clients during onboarding. These credentials are required to pull container images from Authenta’s private registry. For credential delivery or renewal, please contact [Authenta Support](/on-prem/support).
+
+### 3. Pull Docker Images
+
+```bash
+# Authenticate with ECR
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
+
+# Pull images
+docker compose pull
+```
+
+> Tip: Replace \<AUTHENTA_ACCOUNT_ID\> with the value provided by Authenta Support. Once the images are pulled, you can disable outbound internet access — Authenta runs fully offline after installation.
+
+### 4. Start Services
+
+For GPU environment:
+
+```bash
+docker compose --profile gpu up -d
+```
+
+For CPU-only environment:
+
+```bash
+docker compose --profile cpu up -d
+```
+
+### 5. Verify Installation
+
+```bash
+# Check container status
+docker compose ps
+
+# View logs
+docker compose logs -f
+```
+
+## Post-Installation
+
+1. Access RabbitMQ dashboard at `http://localhost:15672`
+
+   - Username: `admin`
+   - Password: (check configuration file)
+
+2. Test with demo application:
+   ```bash
+   cd demo-app
+   npm install
+   npm start
+   ```
+
+## Next Steps
+
+- Review [configuration options](/on-prem/configuration)
+- Learn how to [use Authenta](/on-prem/using-authenta)
+- Set up [monitoring](/on-prem/maintenance-updates)
+
+## Troubleshooting
+
+If you encounter any issues:
+
+1. Check the [troubleshooting guide](/on-prem/troubleshooting)
+2. Review container logs
+3. Contact [support](/on-prem/support)

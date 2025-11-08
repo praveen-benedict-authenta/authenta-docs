@@ -1,0 +1,137 @@
+# Prerequisites
+
+## Overview
+
+Before installing **Authenta On-Prem**, ensure that your system meets the hardware, software, and network prerequisites listed below.  
+These requirements are designed to guarantee stable performance, successful image pulls, and full offline operation after setup.
+
+## 1. System Requirements
+
+Authenta supports both **CPU** and **GPU** environments.  
+Hardware specifications vary based on the volume of media processed and desired inference speed.
+
+### ✅ Minimum Recommended Hardware
+
+| Component          | Requirement                                    | Notes                                              |
+| ------------------ | ---------------------------------------------- | -------------------------------------------------- |
+| **CPU**            | 8-core Intel Xeon / AMD EPYC (or higher)       | Required for CPU-only inference                    |
+| **GPU (optional)** | NVIDIA GPU with ≥8GB VRAM (Tesla / RTX series) | Required for GPU-accelerated mode                  |
+| **Memory (RAM)**   | 16 GB minimum (32 GB recommended)              | For concurrent processing and caching              |
+| **Storage**        | 100 GB free disk space                         | For Docker images, logs, and temporary media files |
+| **Network**        | Temporary internet access                      | Only required once to pull images from AWS ECR     |
+| **OS**             | Ubuntu 20.04+ / CentOS 8+ / Amazon Linux 2     | 64-bit Linux recommended                           |
+
+> 💡 **Tip:** For production deployments or large-scale workloads, allocate dedicated GPU resources and SSD storage for improved throughput.
+
+## 2. Software Requirements
+
+Authenta is distributed as Docker containers and requires the following dependencies to be pre-installed.
+
+| Software                 | Minimum Version | Purpose                                                 |
+| ------------------------ | --------------- | ------------------------------------------------------- |
+| **Docker Engine**        | v20.10+         | Core runtime for all containers                         |
+| **Docker Compose**       | v2.5+           | Used to orchestrate the Authenta services               |
+| **AWS CLI**              | v2+             | Required for authenticating and pulling images from ECR |
+| **Node.js** _(optional)_ | v16+            | Used for running the sample demo application            |
+
+### Install Docker & Compose (Ubuntu Example)
+
+```bash
+# Install Docker and Docker Compose
+sudo apt-get update
+sudo apt-get install -y docker.io docker-compose-plugin
+sudo systemctl enable docker
+sudo systemctl start docker
+
+# Verify versions
+docker --version
+docker compose version
+```
+
+## 3. GPU Environment (Optional)
+
+If you plan to use the GPU-accelerated inference profile (`ml-task-runner-gpu`), install the following additional dependencies:
+
+| Dependency               | Description                                    |
+| ------------------------ | ---------------------------------------------- |
+| NVIDIA Driver            | Must match your GPU model (recommended: v525+) |
+| NVIDIA Container Toolkit | Enables GPU access within Docker containers    |
+
+### Install NVIDIA Container Toolkit (Ubuntu Example)
+
+```bash
+# Add package repository
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+curl -s -L https://nvidia.github.io/libnvidia-container/gpgkey | sudo apt-key add -
+curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+# Install toolkit
+sudo apt-get update
+sudo apt-get install -y nvidia-container-toolkit
+
+# Restart Docker
+sudo systemctl restart docker
+
+# Verify GPU access inside Docker
+docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi
+```
+
+## 4. Network & Access Requirements
+
+Authenta operates fully offline after setup, but you'll need limited internet access initially to pull Docker images from our private AWS registry.
+
+### Required During Setup
+
+| Item                     | Description                                                              |
+| ------------------------ | ------------------------------------------------------------------------ |
+| Outbound Internet Access | Needed only once to pull container images. Can be disabled afterward     |
+| AWS ECR Credentials      | Provided by Authenta. Used for secure login and image pull               |
+| Ports                    | Internal communication only (RabbitMQ: 5672 / 15672 for dashboard)       |
+| Firewall Rules           | Allow local container-to-container communication over the Docker network |
+
+⚠️ After installation, you may safely disable outbound internet and lock down ports for air-gapped operation.
+
+## 5. File System & Storage Setup
+
+Authenta requires a shared host directory that is mounted into containers for data exchange.
+
+| Path                 | Purpose                                            |
+| -------------------- | -------------------------------------------------- |
+| `/opt/authenta/data` | Stores input files and inference outputs           |
+| `/opt/authenta/logs` | (Optional) Capture logs for auditing or monitoring |
+
+Ensure that:
+
+- The directory exists before starting the containers
+- Proper permissions are assigned (e.g., `chmod 775 /opt/authenta/data`)
+- Sufficient disk space is available for temporary media storage
+
+## 6. Access Permissions
+
+To deploy Authenta, the executing user must have:
+
+- Docker permissions (part of the `docker` group)
+- Read/Write access to shared data and log directories
+- Network access (for initial setup only)
+- **Authenta Registry Access:** Authenta will provide your team with the AWS Account ID and temporary ECR credentials needed to pull images from Authenta’s private registry.
+
+## 7. Optional Tools (for Debugging or Integration)
+
+While not mandatory, the following tools are useful during setup or testing:
+
+| Tool                       | Purpose                                     |
+| -------------------------- | ------------------------------------------- |
+| Postman / curl             | Test message publishing to RabbitMQ or APIs |
+| Docker Desktop / Portainer | Visual management of containers and logs    |
+| jq                         | JSON parsing utility for log inspection     |
+
+## Summary
+
+| Category       | Requirement                                             |
+| -------------- | ------------------------------------------------------- |
+| Hardware       | 8-core CPU, 16–32 GB RAM, 100 GB storage                |
+| GPU (optional) | NVIDIA GPU with drivers + container toolkit             |
+| Software       | Docker, Docker Compose, AWS CLI                         |
+| Network        | One-time internet access for ECR image pull             |
+| Permissions    | Docker group membership + directory access              |
+| OS             | 64-bit Linux (Ubuntu 20.04+, CentOS 8+, Amazon Linux 2) |

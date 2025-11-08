@@ -1,0 +1,115 @@
+# System Architecture
+
+## Overview
+
+Authenta On-Prem is built as a **modular, containerized system** that can run entirely within your organization's network.  
+All inference processing, task management, and result storage happen locally — ensuring full data confidentiality and compliance.
+
+At its core, Authenta consists of three primary components:
+
+1. **RabbitMQ** — Message broker that orchestrates inference jobs
+2. **ML Task Runner** — Python-based container that executes the AI model (CPU or GPU)
+3. **Shared Volume** — Host directory mounted into containers for input and output exchange
+
+These components communicate internally through a secure local Docker network.  
+Once deployed, the system can run indefinitely in an **air-gapped (offline)** mode.
+
+## Component Diagram
+
+![Authenta System Architecture](/architecture.png)
+
+## Component Details
+
+### 📨 RabbitMQ (Message Broker)
+
+- Acts as the central hub for task dispatch and result collection
+- Exposes a single queue (default: `task_queue`)
+- Used by internal or external applications to publish jobs and receive inference results
+- Includes a management dashboard at `http://localhost:15672` for monitoring queues and message flow
+
+### 🧠 ML Task Runner (Inference Service)
+
+- Containerized Python service that loads Authenta's trained models
+- Processes incoming jobs from RabbitMQ and executes the appropriate detection model
+- Available in two profiles:
+  - **ml-task-runner-gpu** — optimized for NVIDIA GPU acceleration (default)
+  - **ml-task-runner-cpu** — for CPU-only systems
+- Writes inference outputs and logs to the shared host directory
+- Scalable: multiple task runner containers can be deployed for parallel job handling
+
+### 📂 Shared Host Volume
+
+- Mounted as a local directory on the host system (e.g., `/opt/authenta/data`)
+- Used for:
+  - Uploading media files for analysis
+  - Storing model inference results and logs
+- The ML task runner reads from and writes to this volume directly
+- Ensures all content stays within your environment with no external storage dependency
+
+## Internal Communication
+
+- All services communicate over an internal **Docker network**
+- RabbitMQ and ML Task Runner exchange messages securely without leaving the host
+- No ports are exposed externally unless explicitly configured (except for RabbitMQ dashboard if enabled)
+- You can further isolate services using your own network namespace or container firewall rules
+
+## CPU vs GPU Profiles
+
+| Profile | Service Name         | Description                                                              | Requirements                      |
+| ------- | -------------------- | ------------------------------------------------------------------------ | --------------------------------- |
+| **GPU** | `ml-task-runner-gpu` | Default profile leveraging NVIDIA CUDA acceleration for faster inference | NVIDIA driver + Container Toolkit |
+| **CPU** | `ml-task-runner-cpu` | Compatible profile for systems without GPUs                              | Docker only                       |
+
+Both profiles are defined in the provided `docker-compose.yml` file.
+You can start either profile as needed:
+
+```bash
+# Start GPU profile (recommended)
+docker compose --profile gpu up -d
+
+# Start CPU profile (fallback)
+docker compose --profile cpu up -d
+```
+
+## Offline Operation
+
+After the initial image pull from Authenta's private AWS ECR, all components can run offline:
+
+- No outbound API calls or telemetry
+- No internet connection required for inference or logging
+- Optional network hardening:
+  - Block all outbound traffic
+  - Allow only internal container-to-container communication
+
+This ensures complete data isolation and compliance for secure or regulated environments.
+
+## High-Level Data Flow
+
+1. A client application publishes a JSON message (task) to the RabbitMQ queue
+2. The ML Task Runner consumes the message and retrieves the referenced input file from the shared directory
+3. The model performs inference (deepfake, AI-generated, or forgery detection)
+4. The resulting metadata and detection scores are written back to the shared volume
+5. The result is optionally sent back to the client application through RabbitMQ or HTTP callback
+
+## Scalability
+
+Authenta supports horizontal scaling out of the box.
+You can deploy multiple ml-task-runner containers — RabbitMQ will automatically distribute jobs among available consumers.
+
+Example:
+
+```bash
+docker compose up -d --scale ml-task-runner-gpu=3
+```
+
+Each container instance processes tasks independently, enabling higher throughput for batch or real-time use cases.
+
+## Summary
+
+| Aspect          | Description                                     |
+| --------------- | ----------------------------------------------- |
+| Deployment Type | Docker Compose (CPU or GPU)                     |
+| Core Services   | RabbitMQ, ML Task Runner, Shared Volume         |
+| Data Flow       | Queue-based message dispatch and local file I/O |
+| Scalability     | Multi-instance ready                            |
+| Security        | Offline, isolated, no external dependencies     |

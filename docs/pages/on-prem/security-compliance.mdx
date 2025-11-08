@@ -1,0 +1,178 @@
+# Security & Compliance
+
+## Overview
+
+Authenta On-Prem is designed with **security, privacy, and data isolation** at its core.  
+All processing occurs entirely within your infrastructure, ensuring that sensitive media content and detection results **never leave your environment**.
+
+This page outlines Authenta's security architecture, offline design principles, credential handling, and compliance alignment.
+
+## 1. Core Security Principles
+
+Authenta follows five key principles for secure operation:
+
+| Principle                 | Description                                                                                         |
+| ------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Data Residency**        | All files, results, and logs remain within your infrastructure                                      |
+| **Offline Operation**     | Internet access is required only once (for image pull). After setup, Authenta runs fully air-gapped |
+| **Zero Telemetry**        | No data, metrics, or telemetry are transmitted to external servers                                  |
+| **Isolated Components**   | All services communicate internally via a private Docker network                                    |
+| **Enterprise Governance** | Designed to meet data protection, privacy, and audit standards required by enterprise clients       |
+
+## 2. Data Isolation & Air-Gapped Operation
+
+Authenta's on-prem architecture ensures complete **logical and physical isolation** from external networks.
+
+### How Isolation Works
+
+- All components (RabbitMQ, ML task runner, shared volume) run on your local host system
+- The system uses **internal container networking** only — no external APIs or DNS calls are made
+- Once Docker images are pulled from AWS ECR, all functionality works **offline** indefinitely
+- Outbound internet can be **fully disabled** or restricted by firewall rules after installation
+
+### Verifying Offline Readiness
+
+You can confirm Authenta's independence by:
+
+```bash
+docker compose ps
+# stop outbound network
+sudo ufw deny out to any
+# verify inference jobs continue running
+```
+
+Inference continues to function even with no internet connectivity — confirming full isolation.
+
+## 3. Credential Security
+
+Authenta requires credentials only once during setup for authenticating to the private AWS ECR.
+
+### AWS ECR Credentials
+
+- Provided as read-only credentials, scoped only to the Authenta container registry
+- Used to pull initial Docker images and perform future updates
+- Can be safely revoked or rotated after image pull is complete
+- Not required for daily operation
+
+Example login (one-time):
+
+```bash
+aws ecr get-login-password --region us-east-1 \
+| docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
+```
+
+> 🔐 **Best Practice:** Store credentials in a secret manager (AWS Secrets Manager, HashiCorp Vault, or internal vault system) and restrict access to authorized DevOps personnel only.
+
+## 4. Network Security
+
+| Layer                   | Security Mechanism         | Description                                                                       |
+| ----------------------- | -------------------------- | --------------------------------------------------------------------------------- |
+| Container Communication | Docker internal network    | RabbitMQ and task runners communicate on a private, non-exposed network           |
+| External Ports          | Optional                   | Only RabbitMQ ports (5672, 15672) are exposed, and can be restricted to admin IPs |
+| Firewall Enforcement    | Recommended                | Block all outbound internet traffic after setup                                   |
+| TLS Support             | Optional (advanced setups) | You can configure RabbitMQ with SSL certificates for encrypted message transport  |
+
+> 🧠 You may fully operate Authenta within a segmented VLAN or secure subnet to comply with internal network segregation policies.
+
+## 5. Access Control
+
+Access to Authenta is governed through host and container-level permissions.
+
+| Area           | Control Mechanism                | Recommendation                                                              |
+| -------------- | -------------------------------- | --------------------------------------------------------------------------- |
+| Host OS        | Linux user permissions           | Run Docker as a non-root user part of the docker group                      |
+| RabbitMQ       | Username/password authentication | Update credentials in .env after initial setup                              |
+| Data Directory | File system permissions          | Restrict /opt/authenta/data and /opt/authenta/logs to authorized users only |
+| Admin Access   | RabbitMQ Dashboard               | Limit to internal admin IPs or require VPN access                           |
+
+## 6. Logging & Auditing
+
+Authenta produces logs in structured JSON format for transparency and traceability.
+No external telemetry or analytics are embedded.
+
+### Log Categories
+
+- System Logs — service startup, configuration, and runtime events
+- Job Logs — model execution, inference results, and error reports
+- Access Logs — RabbitMQ connection events and message acknowledgements
+
+You can forward logs to your enterprise monitoring or SIEM platform for compliance auditing.
+
+Example log:
+
+```json
+{
+  "level": "info",
+  "timestamp": "2025-11-07T12:34:56Z",
+  "service": "ml-task-runner",
+  "event": "Task processed",
+  "job_id": "12345",
+  "model": "DF-1",
+  "confidence": 0.9821
+}
+```
+
+## 7. Compliance Alignment
+
+Authenta's architecture aligns with key data protection and privacy frameworks commonly required by enterprise and government clients.
+
+| Framework             | Relevance                                  | Compliance Measures                              |
+| --------------------- | ------------------------------------------ | ------------------------------------------------ |
+| GDPR (EU)             | Data residency, consent, and audit control | 100% local processing; no external transfers     |
+| ISO/IEC 27001         | Information security management            | Container isolation, credential control, logging |
+| SOC 2 Type II         | Confidentiality & availability             | No external data handling or telemetry           |
+| NIST 800-53 / 800-171 | U.S. federal cybersecurity controls        | Network isolation, access controls, auditability |
+| HIPAA (U.S.)          | Protected health information handling      | Local-only processing, secure credentials        |
+
+Authenta On-Prem does not transmit any personally identifiable information (PII) or client media outside your network, making it suitable for regulated and sensitive environments.
+
+## 8. Model and Data Privacy
+
+Authenta's AI models are encapsulated within Docker containers and are not modifiable or externally accessible:
+
+- No outbound model telemetry or analytics
+- No upload, retraining, or cloud inference dependencies
+- Input and output data remain local at all times
+- Models do not store or cache user-provided content
+
+This guarantees data confidentiality and eliminates the risk of unintentional data leakage.
+
+## 9. Recommended Hardening Steps
+
+After installation, we recommend applying these additional controls:
+
+| Category    | Recommendation                                                           |
+| ----------- | ------------------------------------------------------------------------ |
+| Network     | Disable outbound traffic; whitelist only internal Docker communication   |
+| Credentials | Rotate RabbitMQ and .env passwords quarterly                             |
+| Containers  | Run Docker as non-root user where possible                               |
+| Logs        | Centralize to internal ELK/Graylog server with secure retention policies |
+| OS Security | Keep host OS and Docker packages patched                                 |
+| Monitoring  | Periodically verify container integrity and uptime                       |
+
+## 10. Security Incident Handling
+
+In the unlikely event of a system issue or suspected compromise:
+
+1. Stop all Authenta containers:
+   ```bash
+   docker compose down
+   ```
+2. Isolate the affected host(s) from the network
+3. Review Docker and host logs for anomalies
+4. Restore from your latest verified backup
+5. Contact Authenta Support for verification or guidance before re-enabling production processing
+
+Authenta's support team will assist your engineers in verifying integrity and configuration.
+
+## 11. Summary
+
+| Area           | Security Measure                                   |
+| -------------- | -------------------------------------------------- |
+| Data Flow      | 100% local; no external network calls              |
+| Network        | Fully offline, internal Docker communication only  |
+| Credentials    | One-time AWS ECR login; revocable read-only access |
+| Access Control | Role-based with host and container permissions     |
+| Compliance     | Aligned with GDPR, ISO 27001, SOC 2, and NIST      |
+| Logging        | Structured JSON, no telemetry or tracking          |
+| Auditability   | Local logs and results are fully auditable         |
