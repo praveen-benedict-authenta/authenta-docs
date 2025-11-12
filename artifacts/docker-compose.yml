@@ -32,8 +32,8 @@ services:
   ml-task-runner-gpu:
     <<: *ml-task-runner-configs
     platform: linux/arm64
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/authena/ml-task-runner:v1-gpu
-    profiles: ['gpu', 'default']
+    image: '${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/authena/ml-task-runner:v1-gpu'
+    profiles: ['gpu']
     runtime: nvidia
     environment:
       NVIDIA_VISIBLE_DEVICES: all
@@ -49,5 +49,5 @@ services:
   ml-task-runner-cpu:
     <<: *ml-task-runner-configs
     platform: linux/arm64
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/authena/ml-task-runner:v1-cpu
+    image: '${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/authena/ml-task-runner:v1-cpu'
     profiles: ['cpu']

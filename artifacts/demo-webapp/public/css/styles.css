@@ -1,0 +1,107 @@
+.step-content {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.step-content:not(.hidden) {
+    opacity: 1;
+}
+
+.step-indicator {
+    transition: all 0.3s ease;
+}
+
+.progress-line {
+    transition: transform 0.4s ease;
+}
+
+.model-option {
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
+    transition: transform 0.2s ease;
+}
+
+.model-option:focus-visible .model-card {
+    box-shadow: 0 0 0 3px rgba(105, 104, 174, 0.35);
+}
+
+.model-card {
+    cursor: pointer;
+    border: 2px solid #E5E7EB;
+    transition: all 0.3s ease;
+}
+
+.model-option:hover .model-card {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(105, 104, 174, 0.15);
+}
+
+.model-option.selected .model-card {
+    border-color: #6968ae;
+    box-shadow: 0 16px 32px rgba(105, 104, 174, 0.2);
+    transform: translateY(-6px);
+}
+
+.radio-inner {
+    transition: width 0.2s ease, height 0.2s ease;
+    background-color: #6968ae !important;
+    color: white !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.875rem;
+}
+
+.radio-outer {
+    transition: border-color 0.2s ease;
+}
+
+.btn-disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#dropzone {
+    transition: all 0.2s ease;
+}
+
+#dropzone.drag-over {
+    border-color: #6968ae;
+    background-color: rgba(105, 104, 174, 0.08);
+}
+
+.history-item {
+    padding: 1rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.history-item:hover {
+    background-color: #F3F4F6;
+}
+
+.history-item .status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.status-badge.processing {
+    background-color: rgba(105, 104, 174, 0.15);
+    color: #4C1D95;
+}
+
+.status-badge.completed {
+    background-color: #D1FAE5;
+    color: #065F46;
+}
+
+.status-badge.error {
+    background-color: #FEE2E2;
+    color: #991B1B;
+}
