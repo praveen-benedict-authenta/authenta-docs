@@ -16,6 +16,7 @@ x-ml-task-runner-configs: &ml-task-runner-configs
 services:
   rabbitmq:
     image: rabbitmq:4-management
+    container_name: rabbitmq
     ports:
       - '5672:5672'
       - '15672:15672'
@@ -32,6 +33,7 @@ services:
   ml-task-runner-gpu:
     <<: *ml-task-runner-configs
     platform: linux/arm64
+    container_name: ml-task-runner
     image: '${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/authena/ml-task-runner:v1-gpu'
     profiles: ['gpu']
     runtime: nvidia
@@ -49,5 +51,6 @@ services:
   ml-task-runner-cpu:
     <<: *ml-task-runner-configs
     platform: linux/arm64
+    container_name: ml-task-runner
     image: '${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/authena/ml-task-runner:v1-cpu'
     profiles: ['cpu']

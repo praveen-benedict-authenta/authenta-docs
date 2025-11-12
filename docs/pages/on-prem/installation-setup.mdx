@@ -87,8 +87,11 @@ Authenticate to Authenta’s private ECR and start all services using Docker Com
 # Authenticate to Authenta’s ECR
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <AUTHENTA_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
 
-# Deploy containers
-docker compose up -d
+# For GPU environment:
+docker compose --profile gpu up -d
+
+# For CPU-only environment:
+docker compose --profile cpu up -d
 ```
 
 > **Important:**

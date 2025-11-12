@@ -29,8 +29,7 @@ if (!db.data || !db.data.jobs) {
 }
 
 const RABBIT_MQ_URL = 'amqp://user:pass@localhost:5672/';
-const SHARED_DIR = 'data/';
-// const SHARED_DIR = '/opt/authenta/data/';
+const SHARED_DIR = '/opt/authenta/data/';
 
 console.log('Starting application with:');
 console.log('  RABBIT_MQ_URL:', RABBIT_MQ_URL);
