@@ -89,7 +89,6 @@ Authenta requires a shared host directory that is mounted into containers for da
 | Path                 | Purpose                                            |
 | -------------------- | -------------------------------------------------- |
 | `/opt/authenta/data` | Stores input files and inference outputs           |
-| `/opt/authenta/logs` | (Optional) Capture logs for auditing or monitoring |
 
 Ensure that:
 
@@ -102,7 +101,7 @@ Ensure that:
 To deploy Authenta, the executing user must have:
 
 - Docker permissions (part of the `docker` group)
-- Read/Write access to shared data and log directories
+- Read/Write access to shared data.
 - Network access (for initial setup only)
 - **Authenta Registry Access:** Authenta will provide your team with the AWS Account ID and temporary ECR credentials needed to pull images from Authenta’s private registry.
 
