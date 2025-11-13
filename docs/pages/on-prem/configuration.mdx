@@ -44,7 +44,7 @@ x-ml-task-runner-configs: &ml-task-runner-configs
     RABBITMQ_QUEUE: task_queue
     RUN_MODE: production
   volumes:
-    - ./shared:/app/shared
+    - /opt/authenta/data:/opt/authenta/data
 ```
 
 ## 3. Service Configuration
