@@ -72,16 +72,25 @@
 }
 
 .history-item {
-    padding: 1rem 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
     transition: background-color 0.2s ease;
+    padding: 1.25rem 1.5rem;
+    cursor: pointer;
 }
 
 .history-item:hover {
     background-color: #F3F4F6;
+}
+
+.history-item-content {
+    flex: 1;
+}
+
+.delete-item-btn {
+    flex-shrink: 0;
+}
+
+.delete-item-btn:hover {
+    background-color: #FEE2E2;
 }
 
 .history-item .status-badge {
@@ -89,6 +98,8 @@
     border-radius: 9999px;
     font-size: 0.875rem;
     font-weight: 500;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .status-badge.processing {
@@ -104,4 +115,51 @@
 .status-badge.error {
     background-color: #FEE2E2;
     color: #991B1B;
+}
+
+#bbox-canvas {
+    position: absolute;
+    pointer-events: none;
+    z-index: 10;
+}
+
+#result-detail-canvas {
+    position: absolute;
+    pointer-events: none;
+    z-index: 10;
+}
+
+#results-content video,
+#results-content img,
+#result-detail-view video,
+#result-detail-view img {
+    max-width: 100%;
+    height: auto;
+}
+
+.relative {
+    position: relative;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
 }

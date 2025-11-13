@@ -7,6 +7,7 @@ import { WebSocketServer } from 'ws';
 import { Low } from 'lowdb';
 import { JSONFile } from 'lowdb/node';
 import { fileURLToPath } from 'url';
+import { spawn } from 'child_process';
 
 // Initialize database
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -161,6 +162,72 @@ app.get('/api/history', async (req, res) => {
   }
 });
 
+app.post('/api/history/clear', async (req, res) => {
+  try {
+    await db.read();
+    
+    // Optionally delete result folders from disk
+    if (db.data.jobs && db.data.jobs.length > 0) {
+      db.data.jobs.forEach(job => {
+        if (job.resultFolder) {
+          const folderPath = path.join(SHARED_DIR, job.resultFolder);
+          if (fs.existsSync(folderPath)) {
+            try {
+              fs.rmSync(folderPath, { recursive: true, force: true });
+              console.log(`Deleted folder: ${folderPath}`);
+            } catch (err) {
+              console.error(`Failed to delete folder ${folderPath}:`, err);
+            }
+          }
+        }
+      });
+    }
+    
+    // Clear the jobs array
+    db.data.jobs = [];
+    await db.write();
+    
+    res.json({ success: true, message: 'History cleared successfully' });
+  } catch (error) {
+    console.error('Error clearing history:', error);
+    res.status(500).json({ error: 'Failed to clear history' });
+  }
+});
+
+app.delete('/api/history/:jobId', async (req, res) => {
+  try {
+    await db.read();
+    const job = db.data.jobs.find((j) => j.id === req.params.jobId);
+
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    // Delete result folder from disk
+    if (job.resultFolder) {
+      const folderPath = path.join(SHARED_DIR, job.resultFolder);
+      if (fs.existsSync(folderPath)) {
+        try {
+          fs.rmSync(folderPath, { recursive: true, force: true });
+          console.log(`Deleted folder: ${folderPath}`);
+        } catch (err) {
+          console.error(`Failed to delete folder ${folderPath}:`, err);
+          return res.status(500).json({ error: 'Failed to delete result folder' });
+        }
+      }
+    }
+
+    // Remove job from database
+    db.data.jobs = db.data.jobs.filter((j) => j.id !== req.params.jobId);
+    await db.write();
+
+    res.json({ success: true, message: 'Item deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting item:', error);
+    res.status(500).json({ error: 'Failed to delete item' });
+  }
+});
+
 app.get('/api/heatmaps/:jobId', async (req, res) => {
   try {
     await db.read();
@@ -194,7 +261,6 @@ app.get('/api/heatmaps/:jobId', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch heatmaps' });
   }
 });
-
 app.get('/api/heatmaps/:jobId/file/:filename', async (req, res) => {
   try {
     await db.read();
@@ -204,16 +270,145 @@ app.get('/api/heatmaps/:jobId/file/:filename', async (req, res) => {
       return res.status(404).json({ error: 'Job not found' });
     }
 
-    const filePath = path.join(SHARED_DIR, job.resultFolder, 'heatmaps', req.params.filename);
+    const filePath = path.join(
+      SHARED_DIR,
+      job.resultFolder,
+      'heatmaps',
+      req.params.filename
+    );
 
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'File not found' });
     }
 
+    const stat = fs.statSync(filePath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    const ext = path.extname(req.params.filename).toLowerCase();
+
+    // --- VIDEO FILE HANDLING ---
+    if (ext === '.mp4') {
+      if (!range) {
+        // Full file fallback
+        res.writeHead(200, {
+          "Content-Length": fileSize,
+          "Content-Type": "video/mp4",
+          "Accept-Ranges": "bytes",
+        });
+        return fs.createReadStream(filePath).pipe(res);
+      }
+
+      // Proper range support
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+      if (start >= fileSize) {
+        res.status(416).send("Requested range not satisfiable");
+        return;
+      }
+
+      const chunkSize = (end - start) + 1;
+      const fileStream = fs.createReadStream(filePath, { start, end });
+
+      res.writeHead(206, {
+        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": chunkSize,
+        "Content-Type": "video/mp4",
+      });
+
+      return fileStream.pipe(res);
+    }
+
+    // --- IMAGE FILE HANDLING ---
+    if (ext === ".png") res.type("png");
+    else if (ext === ".jpg" || ext === ".jpeg") res.type("jpeg");
+    else res.type("application/octet-stream");
+
+    return res.sendFile(path.resolve(filePath));
+
+  } catch (err) {
+    console.error("Error serving heatmap:", err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to load heatmap file" });
+    }
+  }
+});
+
+
+app.get('/api/result/:jobId', async (req, res) => {
+  try {
+    await db.read();
+    const job = db.data.jobs.find((j) => j.id === req.params.jobId);
+
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    if (!job.resultFolder) {
+      return res.status(404).json({ error: 'No result folder found for this job' });
+    }
+
+    const resultPath = path.join(SHARED_DIR, job.resultFolder, 'result.json');
+
+    if (!fs.existsSync(resultPath)) {
+      return res.status(404).json({ error: 'Result file not found' });
+    }
+
+    const resultData = JSON.parse(fs.readFileSync(resultPath, 'utf-8'));
+    res.json(resultData);
+  } catch (error) {
+    console.error('Error fetching result:', error);
+    res.status(500).json({ error: 'Failed to fetch result' });
+  }
+});
+
+app.get('/api/original/:jobId', async (req, res) => {
+  try {
+    await db.read();
+    const job = db.data.jobs.find((j) => j.id === req.params.jobId);
+
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    if (!job.resultFolder) {
+      return res.status(404).json({ error: 'No result folder found for this job' });
+    }
+
+    const folderPath = path.join(SHARED_DIR, job.resultFolder);
+    
+    // Find the original file in the folder (could be any name)
+    const files = fs.readdirSync(folderPath);
+    const originalFile = files.find(f => 
+      !f.startsWith('.') && 
+      f !== 'result.json' && 
+      f !== 'heatmaps' &&
+      fs.lstatSync(path.join(folderPath, f)).isFile()
+    );
+
+    if (!originalFile) {
+      return res.status(404).json({ error: 'Original file not found' });
+    }
+
+    const filePath = path.join(folderPath, originalFile);
+    
+    // Set appropriate content type based on file extension
+    const ext = path.extname(originalFile).toLowerCase();
+    if (ext === '.mp4' || ext === '.avi' || ext === '.mov') {
+      res.contentType('video/mp4');
+    } else if (ext === '.png') {
+      res.contentType('image/png');
+    } else if (ext === '.jpg' || ext === '.jpeg') {
+      res.contentType('image/jpeg');
+    }
+    
     res.sendFile(path.resolve(filePath));
   } catch (error) {
-    console.error('Error serving heatmap file:', error);
-    res.status(500).json({ error: 'Failed to serve heatmap file' });
+    console.error('Error serving original file:', error);
+    res.status(500).json({ error: 'Failed to serve original file' });
   }
 });
 
