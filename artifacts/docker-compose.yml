@@ -1,17 +1,20 @@
+x-ml-task-runner-environments: &x-ml-task-runner-environments
+  LOG_FORMAT: json
+  RABBITMQ_URL: amqp://user:pass@rabbitmq:5672/
+  INFRA_TYPE: on-prem
+  LOG_LEVEL: INFO
+  JOBS_ROOT: /app/jobs
+  RABBITMQ_QUEUE: task_queue
+  RUN_MODE: production
+
 x-ml-task-runner-configs: &ml-task-runner-configs
   depends_on:
     rabbitmq:
       condition: service_healthy
   environment:
-    LOG_FORMAT: json
-    RABBITMQ_URL: amqp://user:pass@rabbitmq:5672/
-    INFRA_TYPE: on-prem
-    LOG_LEVEL: INFO
-    JOBS_ROOT: /app/jobs
-    RABBITMQ_QUEUE: task_queue
-    RUN_MODE: production
+    <<: *x-ml-task-runner-environments
   volumes:
-    - ./shared:/app/shared
+    - /opt/authenta/data:/opt/authenta/data
 
 services:
   rabbitmq:
@@ -32,12 +35,13 @@ services:
 
   ml-task-runner-gpu:
     <<: *ml-task-runner-configs
-    platform: linux/arm64
+    platform: linux/amd64
     container_name: ml-task-runner
     image: '${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/authena/ml-task-runner:v1-gpu'
     profiles: ['gpu']
     runtime: nvidia
     environment:
+      <<: *x-ml-task-runner-environments
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     deploy:
