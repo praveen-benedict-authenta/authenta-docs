@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     let selectedModel = null;
     let selectedFile = null; 
+    let currentStep = 1;
     const historyData = new Map();
 
     // Common DOM references
@@ -24,51 +25,64 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         // Show target content with fade in
-        const targetContent = document.querySelector(`#step${step}-content`);
-        targetContent.classList.remove('hidden');
-        setTimeout(() => {
-            targetContent.style.opacity = '1';
-        }, 50);
+        let targetContent;
+        if (step === 'history') {
+            targetContent = document.querySelector('#history-content');
+        } else if (step === 'result-detail') {
+            targetContent = document.querySelector('#result-detail-content');
+        } else {
+            targetContent = document.querySelector(`#step${step}-content`);
+        }
         
-        // Update step indicators
-        document.querySelectorAll('.step-indicator').forEach(indicator => {
-            const indicatorStep = parseInt(indicator.dataset.step);
-            const span = indicator.querySelector('span');
-            
-            if (indicatorStep < step) {
-                indicator.style.background = '#6968ae';
-                span.classList.add('text-white');
-                indicator.classList.add('shadow-lg');
-            } else if (indicatorStep === step) {
-                indicator.style.background = '#6968ae';
-                span.classList.add('text-white');
-                indicator.classList.add('shadow-lg');
-            } else {
-                indicator.style.background = '#f3f4f6';
-                span.classList.remove('text-white');
-                indicator.classList.remove('shadow-lg');
-            }
-            
-            // Update step text color
-            const stepText = indicator.parentElement.querySelector('span:not([class*="text-lg"])');
-            if (indicatorStep <= step) {
-                stepText.classList.remove('text-gray-400');
-                stepText.classList.add('text-[#6968ae]');
-            } else {
-                stepText.classList.add('text-gray-400');
-                stepText.classList.remove('text-[#6968ae]');
-            }
-        });
+        if (targetContent) {
+            targetContent.classList.remove('hidden');
+            setTimeout(() => {
+                targetContent.style.opacity = '1';
+            }, 50);
+        }
         
-        // Update progress lines with animation
-        const progressLines = document.querySelectorAll('.progress-line');
-        progressLines.forEach((line, index) => {
-            if (index < step - 1) {
-                line.style.transform = 'scaleX(1)';
-            } else {
-                line.style.transform = 'scaleX(0)';
-            }
-        });
+        // Only update step indicators for numbered steps
+        if (typeof step === 'number') {
+            // Update step indicators
+            document.querySelectorAll('.step-indicator').forEach(indicator => {
+                const indicatorStep = parseInt(indicator.dataset.step);
+                const span = indicator.querySelector('span');
+                
+                if (indicatorStep < step) {
+                    indicator.style.background = '#6968ae';
+                    span.classList.add('text-white');
+                    indicator.classList.add('shadow-lg');
+                } else if (indicatorStep === step) {
+                    indicator.style.background = '#6968ae';
+                    span.classList.add('text-white');
+                    indicator.classList.add('shadow-lg');
+                } else {
+                    indicator.style.background = '#f3f4f6';
+                    span.classList.remove('text-white');
+                    indicator.classList.remove('shadow-lg');
+                }
+                
+                // Update step text color
+                const stepText = indicator.parentElement.querySelector('span:not([class*="text-lg"])');
+                if (indicatorStep <= step) {
+                    stepText.classList.remove('text-gray-400');
+                    stepText.classList.add('text-[#6968ae]');
+                } else {
+                    stepText.classList.add('text-gray-400');
+                    stepText.classList.remove('text-[#6968ae]');
+                }
+            });
+            
+            // Update progress lines with animation
+            const progressLines = document.querySelectorAll('.progress-line');
+            progressLines.forEach((line, index) => {
+                if (index < step - 1) {
+                    line.style.transform = 'scaleX(1)';
+                } else {
+                    line.style.transform = 'scaleX(0)';
+                }
+            });
+        }
     }
 
     // Model selection
@@ -202,13 +216,38 @@ document.addEventListener('DOMContentLoaded', () => {
         fileInput.setAttribute('accept', acceptType);
     });
 
-    // View History button
-    document.getElementById('view-history-btn').addEventListener('click', () => {
+    // View History button handlers
+    document.getElementById('view-history-btn-step1').addEventListener('click', () => {
         if (historyData.size > 0) {
-            showStep(3);
+            showHistoryPage();
         } else {
             alert('No processing history available yet.');
         }
+    });
+    
+    // Only add listener if the button exists
+    const viewHistoryBtnStep3 = document.getElementById('view-history-btn-step3');
+    if (viewHistoryBtnStep3) {
+        viewHistoryBtnStep3.addEventListener('click', () => {
+            showHistoryPage();
+        });
+    }
+    
+    document.getElementById('close-history').addEventListener('click', () => {
+        showStep(1);
+    });
+    
+    document.getElementById('close-result-detail').addEventListener('click', () => {
+        showHistoryPage();
+    });
+    
+    document.getElementById('back-to-history-btn').addEventListener('click', () => {
+        showHistoryPage();
+    });
+    
+    document.getElementById('process-new-from-history').addEventListener('click', () => {
+        resetForNewProcess();
+        showStep(1);
     });
 
     // Step 2 navigation
@@ -287,13 +326,22 @@ document.addEventListener('DOMContentLoaded', () => {
             nextStep2Btn.style.backgroundColor = '';
         }
     }
- 
-    document.getElementById('back-step3').addEventListener('click', () => {
-        showStep(2);
-    });
 
+    // Process New button handler
     document.getElementById('process-new').addEventListener('click', () => {
+        resetForNewProcess();
+        showStep(1);
+    });
+    
+    // View History button handler
+    document.getElementById('view-history-btn').addEventListener('click', () => {
+        showHistoryPage();
+    });
+    
+    function resetForNewProcess() {
+        // Reset state
         selectedFile = null;
+        currentJobId = null;
         fileInput.value = '';
         filePreview.classList.add('hidden');
         imagePreview.classList.add('hidden');
@@ -301,15 +349,30 @@ document.addEventListener('DOMContentLoaded', () => {
         fileName.textContent = '';
         nextStep2Btn.disabled = true;
         updateUploadButton();
-        showStep(1);
-    });
+        
+        // Hide results view and show processing status
+        document.getElementById('results-view').classList.add('hidden');
+        document.getElementById('processing-status').classList.remove('hidden');
+        
+        // Hide action buttons
+        document.getElementById('view-history-btn').classList.add('hidden');
+        document.getElementById('process-new').classList.add('hidden');
+    }
  
+    let currentJobId = null;
+    
     document.getElementById('next-step2').addEventListener('click', async () => {
         if (!selectedFile || !selectedModel) return;
 
         showStep(3);
         document.getElementById('processing-file-name').textContent = selectedFile.name;
         document.getElementById('process-progress').style.width = '0%';
+        document.getElementById('processing-status').classList.remove('hidden');
+        document.getElementById('results-view').classList.add('hidden');
+        
+        // Hide action buttons during processing
+        document.getElementById('view-history-btn').classList.add('hidden');
+        document.getElementById('process-new').classList.add('hidden');
 
         const formData = new FormData();
         formData.append('file', selectedFile);
@@ -333,7 +396,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
             if (response.ok) {
                 document.getElementById('process-progress').style.width = '100%';
+                currentJobId = result.id;
                 addToHistory(result);
+                listenForJobCompletion(result.id, selectedFile);
             } else {
                 throw new Error(result.error || 'Upload failed');
             }
@@ -341,13 +406,13 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Upload error:', error);
             alert('Failed to upload and process file: ' + error.message);
             document.getElementById('process-progress').style.width = '0%';
+            backStep3Btn.disabled = false;
+            backStep3Btn.classList.remove('cursor-not-allowed', 'opacity-50');
         } finally {
             document.getElementById('next-step2').disabled = false;
         }
     });
  
-    const history = document.getElementById('history');
-    
     // Load history from server on page load
     async function loadHistory() {
         try {
@@ -357,10 +422,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 jobs.forEach(job => {
                     historyData.set(job.id, job);
                 });
-                if (jobs.length > 0) {
-                    document.getElementById('history-section').classList.remove('hidden');
-                    updateHistoryView();
-                }
             }
         } catch (error) {
             console.error('Failed to load history:', error);
@@ -369,16 +430,29 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function addToHistory(item) {
         historyData.set(item.id, item);
-        document.getElementById('history-section').classList.remove('hidden');
-        updateHistoryView();
-        listenForUpdates(item.id);
     }
 
-    function updateHistoryView() {
-        history.innerHTML = '';
+    function showHistoryPage() {
+        showStep('history');
+        updateHistoryList();
+    }
+
+    function updateHistoryList() {
+        const historyList = document.getElementById('history-list');
+        historyList.innerHTML = '';
+        
+        if (historyData.size === 0) {
+            historyList.innerHTML = `
+                <div class="p-8 text-center text-gray-500">
+                    <p>No processing history available yet.</p>
+                </div>
+            `;
+            return;
+        }
+        
         [...historyData.values()].reverse().forEach(item => {
             const div = document.createElement('div');
-            div.className = 'history-item';
+            div.className = 'history-item transition-colors';
             
             // Determine display status based on actual status and results
             let displayStatus = item.status;
@@ -393,155 +467,291 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             div.innerHTML = `
-                <div>
-                    <div class="font-medium">${item.fileName}</div>
-                    <div class="text-sm text-gray-500">
-                        ${new Date(item.timestamp).toLocaleString()} · 
-                        <span class="text-gray-700">${item.model.toUpperCase()}</span>
+                <div class="flex justify-between items-center gap-6">
+                    <div class="flex-1 history-item-content cursor-pointer">
+                        <div class="font-medium text-gray-900">${item.fileName}</div>
+                        <div class="text-sm text-gray-500 mt-1">
+                            ${new Date(item.timestamp).toLocaleString()} · 
+                            <span class="text-gray-700 font-medium">${item.model.toUpperCase()}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="status-badge ${statusClass}">
+                            ${displayStatus}
+                        </span>
+                        <button class="delete-item-btn text-red-600 hover:text-red-800 p-2 rounded hover:bg-red-50 transition-colors" 
+                                data-job-id="${item.id}" 
+                                title="Delete this item">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
                     </div>
                 </div>
-                <span class="status-badge ${statusClass}">
-                    ${displayStatus}
-                </span>
             `;
-            div.addEventListener('click', () => showResults(item));
-            history.appendChild(div);
+            
+            // Add click handler for viewing details
+            const contentDiv = div.querySelector('.history-item-content');
+            contentDiv.addEventListener('click', () => showResultDetail(item));
+            
+            // Add click handler for delete button
+            const deleteBtn = div.querySelector('.delete-item-btn');
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent triggering the detail view
+                deleteHistoryItem(item.id);
+            });
+            
+            historyList.appendChild(div);
         });
     }
- 
-    const modal = document.getElementById('resultsModal');
-    const modalContent = document.getElementById('resultContent');
-    const modalClose = document.querySelector('.modal-close');
-
-    modalClose.addEventListener('click', () => {
-        modal.classList.add('hidden');
-    });
-
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.classList.add('hidden');
+    
+    async function deleteHistoryItem(jobId) {
+        const item = historyData.get(jobId);
+        if (!item) return;
+        
+        const confirmed = confirm(`Delete "${item.fileName}"?\n\nThis will permanently remove the file and all its results.`);
+        if (!confirmed) return;
+        
+        try {
+            const response = await fetch(`/api/history/${jobId}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                historyData.delete(jobId);
+                updateHistoryList();
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to delete item');
+            }
+        } catch (error) {
+            console.error('Error deleting item:', error);
+            alert('Failed to delete item: ' + error.message);
         }
-    });
-
-    async function showResults(item) {
-        // Determine actual status
-        let actualStatus = item.status;
+    }
+    
+    async function showResultDetail(item) {
+        showStep('result-detail');
+        
+        // Show loading state
+        const resultDetailView = document.getElementById('result-detail-view');
+        resultDetailView.innerHTML = `
+            <div class="flex justify-center items-center p-12">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6968ae]"></div>
+            </div>
+        `;
+        
+        // Check for errors
         let hasErrors = false;
         let errorMessages = [];
         
-        if (item.status === 'COMPLETED' && item.result) {
-            if (item.result.status === 'error' || item.result.errors) {
-                actualStatus = 'ERROR';
-                hasErrors = true;
-                errorMessages = item.result.errors || [];
-            }
-        } else if (item.error) {
+        if (item.status === 'ERROR') {
             hasErrors = true;
-            errorMessages = [item.error];
+            errorMessages = [item.error || 'Unknown error occurred'];
+        } else if (item.result && (item.result.status === 'error' || item.result.errors)) {
+            hasErrors = true;
+            errorMessages = item.result.errors || ['Processing failed'];
         }
         
-        // Fetch heatmaps if available
-        let heatmapsHtml = '';
-        if (item.hasHeatmaps && item.status === 'COMPLETED' && !hasErrors) {
+        if (hasErrors) {
+            resultDetailView.innerHTML = `
+                <div class="bg-red-50 border-2 border-red-200 rounded-lg p-6">
+                    <h3 class="text-lg font-semibold text-red-800 mb-3">Processing Failed</h3>
+                    <div class="space-y-2">
+                        ${errorMessages.map(err => `<p class="text-red-700">• ${err}</p>`).join('')}
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        // Try to fetch the full result from result.json file
+        let fullResult = item.result;
+        try {
+            const resultResponse = await fetch(`/api/result/${item.id}`);
+            if (resultResponse.ok) {
+                fullResult = await resultResponse.json();
+            }
+        } catch (error) {
+            console.log('Could not fetch result.json, using stored result:', error);
+        }
+        
+        // Display results based on model type
+        if (item.model === 'df-1') {
+            await displayDF1ResultDetail(item, fullResult);
+        } else if (item.model === 'ac-1') {
+            await displayAC1ResultDetail(item, fullResult);
+        }
+    }
+    
+    async function displayDF1ResultDetail(item, result) {
+        const resultDetailView = document.getElementById('result-detail-view');
+        
+        // Fetch heatmaps - backend now serves them with faststart via ffmpeg
+        let heatmapVideos = [];
+        if (item.hasHeatmaps) {
             try {
                 const response = await fetch(`/api/heatmaps/${item.id}`);
                 if (response.ok) {
                     const data = await response.json();
-                    if (data.heatmaps && data.heatmaps.length > 0) {
-                        const isVideo = item.model === 'df-1';
-                        heatmapsHtml = `
-                            <div>
-                                <h4 class="font-medium text-gray-700">Heatmaps (${data.heatmaps.length})</h4>
-                                <div class="grid grid-cols-2 gap-3 mt-2 max-h-96 overflow-auto">
-                                    ${data.heatmaps.map(hm => `
-                                        <div class="border border-gray-200 rounded overflow-hidden">
-                                            ${isVideo ? `
-                                                <video controls class="w-full">
-                                                    <source src="${hm.url}" type="video/mp4">
-                                                </video>
-                                            ` : `
-                                                <img src="${hm.url}" alt="${hm.filename}" class="w-full h-auto">
-                                            `}
-                                            <p class="text-xs text-gray-600 p-2 bg-gray-50">${hm.filename}</p>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            </div>
-                        `;
-                    }
+                    heatmapVideos = data.heatmaps || [];
                 }
             } catch (error) {
                 console.error('Failed to load heatmaps:', error);
             }
         }
         
-        modalContent.innerHTML = `
-            <div class="space-y-4">
-                <div>
-                    <h4 class="font-medium text-gray-700">File Name</h4>
-                    <p class="text-gray-900">${item.fileName}</p>
-                </div>
-                <div>
-                    <h4 class="font-medium text-gray-700">Model</h4>
-                    <p class="text-gray-900">${item.model.toUpperCase()}</p>
-                </div>
-                ${item.resultFolder ? `
-                    <div>
-                        <h4 class="font-medium text-gray-700">Result Folder</h4>
-                        <p class="text-gray-900 font-mono text-sm">${item.resultFolder}</p>
-                    </div>
-                ` : ''}
-                <div>
-                    <h4 class="font-medium text-gray-700">Status</h4>
-                    <p class="text-gray-900">
-                        <span class="status-badge ${actualStatus.toLowerCase()}">${actualStatus}</span>
-                    </p>
-                </div>
-                <div>
-                    <h4 class="font-medium text-gray-700">Timestamp</h4>
-                    <p class="text-gray-900">${new Date(item.timestamp).toLocaleString()}</p>
-                </div>
-                ${hasErrors ? `
-                    <div>
-                        <h4 class="font-medium text-red-600">Errors</h4>
-                        <div class="bg-red-50 border border-red-200 rounded p-3 mt-2">
-                            ${errorMessages.map(err => `<p class="text-red-700 text-sm">• ${err}</p>`).join('')}
+        // Get the original video URL
+        const originalVideoPath = `/api/original/${item.id}`;
+        
+        resultDetailView.innerHTML = `
+            <div class="space-y-6">
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                    <h3 class="text-lg font-semibold mb-4">Video Analysis Results</h3>
+                    
+                    <div class="grid grid-cols-1 gap-6">
+                        <!-- Original Video with Bounding Boxes -->
+                        <div>
+                            <h4 class="font-medium text-gray-700 mb-3">Original Video with Detection Overlay</h4>
+                            <div class="relative inline-block w-full">
+                                <video id="result-detail-video" class="w-full max-w-3xl mx-auto rounded-lg shadow-lg" controls>
+                                    <source src="${originalVideoPath}" type="video/mp4">
+                                </video>
+                                <canvas id="result-detail-canvas" class="absolute top-0 left-0 pointer-events-none"></canvas>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2 text-center">Green boxes: Real | Red boxes: Fake</p>
                         </div>
+                        
+                        ${heatmapVideos.length > 0 ? `
+                            <!-- Heatmap Videos -->
+                            <div>
+                                <h4 class="font-medium text-gray-700 mb-3">Heatmap Videos (${heatmapVideos.length})</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    ${heatmapVideos.map((hm, index) => `
+                                        <div class="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                                            <video 
+                                                id="detail-heatmap-video-${index}"
+                                                controls 
+                                                preload="metadata"
+                                                class="w-full bg-black"
+                                            >
+                                                <source src="${hm.url}" type="video/mp4">
+                                                Your browser does not support the video tag.
+                                            </video>
+                                            <div class="p-2 bg-gray-50 flex items-center justify-between">
+                                                <p class="text-xs text-gray-600">${hm.filename}</p>
+                                                <a href="${hm.url}" download="${hm.filename}" class="text-xs text-[#6968ae] hover:underline ml-2">Download</a>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Result Metadata -->
+                        ${result ? `
+                            <div>
+                                <h4 class="font-medium text-gray-700 mb-3">Detection Metadata</h4>
+                                <div class="bg-white border border-gray-200 rounded p-4">
+                                    <pre class="text-sm overflow-auto max-h-64 text-gray-800">${JSON.stringify(result, null, 2)}</pre>
+                                </div>
+                            </div>
+                        ` : ''}
                     </div>
-                ` : ''}
-                ${item.result && !hasErrors ? `
-                    <div>
-                        <h4 class="font-medium text-gray-700">Results</h4>
-                        <div class="bg-gray-50 border border-gray-200 rounded p-4 mt-2">
-                            <pre class="text-sm overflow-auto max-h-96 text-gray-800">${JSON.stringify(item.result, null, 2)}</pre>
-                        </div>
-                    </div>
-                ` : ''}
-                ${heatmapsHtml}
-                ${item.status === 'PROCESSING' ? `
-                    <div class="bg-blue-50 border border-blue-200 rounded p-3">
-                        <p class="text-blue-700 text-sm">
-                            <span class="inline-block animate-pulse mr-2">●</span>
-                            This job is currently being processed...
-                        </p>
-                    </div>
-                ` : ''}
+                </div>
             </div>
         `;
-        modal.classList.remove('hidden');
-    } 
-    function listenForUpdates(jobId) {
-        const ws = new WebSocket(`ws://${window.location.host}/ws`);
         
-        ws.onmessage = (event) => {
+        // Initialize bounding box overlay
+        const boundingBoxData = result?.boundingBoxes || result?.predictions;
+        
+        if (boundingBoxData) {
+            const video = document.getElementById('result-detail-video');
+            const canvas = document.getElementById('result-detail-canvas');
+            
+            video.addEventListener('loadedmetadata', () => {
+                useBoundingBoxes(video, canvas, boundingBoxData);
+            });
+            
+            if (video.readyState >= 1) {
+                useBoundingBoxes(video, canvas, boundingBoxData);
+            }
+        }
+    }
+    
+    async function displayAC1ResultDetail(item, result) {
+        const resultDetailView = document.getElementById('result-detail-view');
+        
+        // Fetch heatmap image
+        let heatmapImage = null;
+        if (item.hasHeatmaps) {
+            try {
+                const response = await fetch(`/api/heatmaps/${item.id}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.heatmaps && data.heatmaps.length > 0) {
+                        heatmapImage = data.heatmaps[0];
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load heatmap:', error);
+            }
+        }
+        
+        resultDetailView.innerHTML = `
+            <div class="space-y-6">
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                    <h3 class="text-lg font-semibold mb-4">Image Analysis Results</h3>
+                    
+                    <div class="grid grid-cols-1 gap-6">
+                        ${heatmapImage ? `
+                            <!-- Heatmap Image -->
+                            <div>
+                                <h4 class="font-medium text-gray-700 mb-3">Detection Heatmap</h4>
+                                <img src="${heatmapImage.url}" alt="Detection Heatmap" class="w-full max-w-3xl rounded-lg shadow-lg mx-auto">
+                                <p class="text-xs text-gray-500 mt-2 text-center">${heatmapImage.filename}</p>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Result Metadata -->
+                        ${result ? `
+                            <div>
+                                <h4 class="font-medium text-gray-700 mb-3">Detection Metadata</h4>
+                                <div class="bg-white border border-gray-200 rounded p-4">
+                                    <pre class="text-sm overflow-auto max-h-96 text-gray-800">${JSON.stringify(result, null, 2)}</pre>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    } 
+    
+    function listenForJobCompletion(jobId, originalFile) {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+        
+        ws.onmessage = async (event) => {
             const update = JSON.parse(event.data);
             if (update.id === jobId) {
                 const item = historyData.get(jobId);
                 if (item) {
                     Object.assign(item, update);
-                    updateHistoryView();
+                    
                     if (update.status === 'COMPLETED' || update.status === 'ERROR') {
                         ws.close();
+                        
+                        // Hide processing status
+                        document.getElementById('processing-status').classList.add('hidden');
+                        
+                        // Show action buttons after processing
+                        document.getElementById('view-history-btn').classList.remove('hidden');
+                        document.getElementById('process-new').classList.remove('hidden');
+                        
+                        // Show results
+                        await displayProcessingResults(item, originalFile);
                     }
                 }
             }
@@ -549,11 +759,346 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ws.onerror = () => {
             console.error('WebSocket error occurred');
+            // Show action buttons on error
+            document.getElementById('view-history-btn').classList.remove('hidden');
+            document.getElementById('process-new').classList.remove('hidden');
         };
 
         ws.onclose = () => {
             console.log('WebSocket connection closed');
         };
+    }
+    
+    async function displayProcessingResults(item, originalFile) {
+        const resultsView = document.getElementById('results-view');
+        const resultsContent = document.getElementById('results-content');
+        
+        resultsView.classList.remove('hidden');
+        
+        // Check for errors
+        let hasErrors = false;
+        let errorMessages = [];
+        
+        if (item.status === 'ERROR') {
+            hasErrors = true;
+            errorMessages = [item.error || 'Unknown error occurred'];
+        } else if (item.result && (item.result.status === 'error' || item.result.errors)) {
+            hasErrors = true;
+            errorMessages = item.result.errors || ['Processing failed'];
+        }
+        
+        if (hasErrors) {
+            resultsContent.innerHTML = `
+                <div class="bg-red-50 border-2 border-red-200 rounded-lg p-6">
+                    <h3 class="text-lg font-semibold text-red-800 mb-3">Processing Failed</h3>
+                    <div class="space-y-2">
+                        ${errorMessages.map(err => `<p class="text-red-700">• ${err}</p>`).join('')}
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        // Try to fetch the full result from result.json file
+        let fullResult = item.result;
+        try {
+            const resultResponse = await fetch(`/api/result/${item.id}`);
+            if (resultResponse.ok) {
+                fullResult = await resultResponse.json();
+            }
+        } catch (error) {
+            console.log('Could not fetch result.json, using stored result:', error);
+        }
+        
+        // Display results based on model type
+        if (item.model === 'df-1') {
+            await displayDF1Results(item, originalFile, fullResult);
+        } else if (item.model === 'ac-1') {
+            await displayAC1Results(item, fullResult);
+        }
+    }
+    
+    async function displayDF1Results(item, originalFile, result) {
+        const resultsContent = document.getElementById('results-content');
+        
+        // Fetch heatmaps - backend now serves them with faststart via ffmpeg
+        let heatmapVideos = [];
+        if (item.hasHeatmaps) {
+            try {
+                const response = await fetch(`/api/heatmaps/${item.id}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    heatmapVideos = data.heatmaps || [];
+                }
+            } catch (error) {
+                console.error('Failed to load heatmaps:', error);
+            }
+        }
+        
+        resultsContent.innerHTML = `
+            <div class="space-y-6">
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold mb-4">Video Analysis Results</h3>
+                    
+                    <!-- Original Video with Bounding Boxes -->
+                    <div class="mb-6">
+                        <h4 class="font-medium text-gray-700 mb-3">Original Video with Detection Overlay</h4>
+                        <div class="relative inline-block">
+                            <video id="original-video" class="w-full max-w-2xl rounded-lg shadow-lg" controls>
+                                <source src="${URL.createObjectURL(originalFile)}" type="${originalFile.type}">
+                            </video>
+                            <canvas id="bbox-canvas" class="absolute top-0 left-0 pointer-events-none"></canvas>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">Green boxes: Real | Red boxes: Fake</p>
+                    </div>
+                    
+                    ${heatmapVideos.length > 0 ? `
+                        <!-- Heatmap Videos -->
+                        <div class="mt-6">
+                            <h4 class="font-medium text-gray-700 mb-3">Heatmap Videos (${heatmapVideos.length})</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                ${heatmapVideos.map((hm, index) => `
+                                    <div class="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                                        <video 
+                                            id="heatmap-video-${index}"
+                                            controls 
+                                            preload="metadata"
+                                            class="w-full bg-black"
+                                        >
+                                            <source src="${hm.url}" type="video/mp4">
+                                            Your browser does not support the video tag.
+                                        </video>
+                                        <div class="p-2 bg-gray-50 flex items-center justify-between">
+                                            <p class="text-xs text-gray-600">${hm.filename}</p>
+                                            <a href="${hm.url}" download="${hm.filename}" class="text-xs text-[#6968ae] hover:underline ml-2">Download</a>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    <!-- Result Metadata -->
+                    ${result ? `
+                        <div class="mt-6">
+                            <h4 class="font-medium text-gray-700 mb-3">Detection Metadata</h4>
+                            <div class="bg-white border border-gray-200 rounded p-4">
+                                <pre class="text-sm overflow-auto max-h-64 text-gray-800">${JSON.stringify(result, null, 2)}</pre>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        
+        // Initialize bounding box overlay
+        const boundingBoxData = result?.boundingBoxes || result?.predictions;
+        
+        if (boundingBoxData) {
+            const video = document.getElementById('original-video');
+            const canvas = document.getElementById('bbox-canvas');
+            
+            video.addEventListener('loadedmetadata', () => {
+                useBoundingBoxes(video, canvas, boundingBoxData);
+            });
+            
+            if (video.readyState >= 1) {
+                useBoundingBoxes(video, canvas, boundingBoxData);
+            }
+        }
+    }
+    
+    async function displayAC1Results(item, result) {
+        const resultsContent = document.getElementById('results-content');
+        
+        // Fetch heatmap image
+        let heatmapImage = null;
+        if (item.hasHeatmaps) {
+            try {
+                const response = await fetch(`/api/heatmaps/${item.id}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.heatmaps && data.heatmaps.length > 0) {
+                        heatmapImage = data.heatmaps[0];
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load heatmap:', error);
+            }
+        }
+        
+        resultsContent.innerHTML = `
+            <div class="space-y-6">
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold mb-4">Image Analysis Results</h3>
+                    
+                    ${heatmapImage ? `
+                        <!-- Heatmap Image -->
+                        <div class="mb-6">
+                            <h4 class="font-medium text-gray-700 mb-3">Detection Heatmap</h4>
+                            <img src="${heatmapImage.url}" alt="Detection Heatmap" class="w-full max-w-2xl rounded-lg shadow-lg mx-auto">
+                            <p class="text-xs text-gray-500 mt-2 text-center">${heatmapImage.filename}</p>
+                        </div>
+                    ` : ''}
+                    
+                    <!-- Result Metadata -->
+                    ${result ? `
+                        <div>
+                            <h4 class="font-medium text-gray-700 mb-3">Detection Metadata</h4>
+                            <div class="bg-white border border-gray-200 rounded p-4">
+                                <pre class="text-sm overflow-auto max-h-96 text-gray-800">${JSON.stringify(result, null, 2)}</pre>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    function useBoundingBoxes(video, canvas, boundingBoxes) {
+        if (!video || !canvas) {
+            return;
+        }
+        
+        if (!boundingBoxes) {
+            return;
+        }
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            return;
+        }
+
+        const syncCanvas = () => {
+            const videoRect = video.getBoundingClientRect();
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.style.width = videoRect.width + 'px';
+            canvas.style.height = videoRect.height + 'px';
+            canvas.style.top = video.offsetTop + 'px';
+            canvas.style.left = video.offsetLeft + 'px';
+
+            updateCanvas();
+        };
+
+        const drawRectangles = () => {
+            if (!boundingBoxes) return;
+
+            const frameRate = 29.97;
+            const currentTime = video.currentTime;
+            const currentFrame = Math.floor(currentTime * frameRate);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            let boxesDrawn = 0;
+            
+            // Check if boundingBoxes is directly a frame-based object
+            if (boundingBoxes[currentFrame] || boundingBoxes[currentFrame.toString()]) {
+                // Direct frame-based structure: boundingBoxes[frameNumber] = [{x1, y1, x2, y2, label}, ...]
+                const frameKey = currentFrame.toString();
+                const boxes = boundingBoxes[currentFrame] || boundingBoxes[frameKey];
+                
+                if (Array.isArray(boxes)) {
+                    boxes.forEach(box => {
+                        // Handle both object and array formats
+                        let x1, y1, x2, y2, label;
+                        
+                        if (Array.isArray(box) && box.length === 4) {
+                            [x1, y1, x2, y2] = box;
+                            label = 'REAL'; // default
+                        } else if (typeof box === 'object') {
+                            ({ x1, y1, x2, y2, label } = box);
+                        } else {
+                            return;
+                        }
+                        
+                        // Set color based on label
+                        const color = label === 'REAL' ? 'rgba(59, 255, 5, 0.6)' : 'rgba(255, 0, 0, 0.6)';
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 3;
+
+                        // Draw rectangle
+                        const width = x2 - x1;
+                        const height = y2 - y1;
+                        ctx.strokeRect(x1, y1, width, height);
+                        boxesDrawn++;
+                    });
+                }
+            } else {
+                // Face-based structure: boundingBoxes.face_X.boundingBox[frameNumber]
+                Object.keys(boundingBoxes).forEach(key => {
+                    const faceData = boundingBoxes[key];
+                    
+                    // Check if boundingBox exists
+                    if (!faceData || !faceData.boundingBox) {
+                        return;
+                    }
+                    
+                    const frameData = faceData.boundingBox[currentFrame.toString()];
+                    if (frameData) {
+                        const boxClass = faceData.class;
+                        const strokeColor = boxClass === 'fake' ? 'rgba(255, 0, 0, 0.6)' : 'rgba(59, 255, 5, 0.6)';
+                        if (Array.isArray(frameData) && frameData.length === 4) {
+                            let [x1, y1, x2, y2] = frameData;
+                            
+                            // Scale coordinates by 2 (backend provides half-resolution coordinates)
+                            x1 *= 2;
+                            y1 *= 2;
+                            x2 *= 2;
+                            y2 *= 2;
+                            
+                            const width = x2 - x1;
+                            const height = y2 - y1;
+
+                            ctx.strokeStyle = strokeColor;
+                            ctx.lineWidth = 2;
+                            ctx.strokeRect(x1, y1, width, height);
+                            
+                            boxesDrawn++;
+                        }
+                    }
+                });
+            }
+        };
+
+        const updateCanvas = () => {
+            drawRectangles();
+            if (!video.paused && !video.ended) {
+                requestAnimationFrame(updateCanvas);
+            }
+        };
+
+        const handlePlay = () => {
+            updateCanvas();
+        };
+
+        const handleSeeked = () => {
+            drawRectangles();
+        };
+        
+        const resizeObserver = new ResizeObserver(syncCanvas);
+        resizeObserver.observe(video);
+
+        window.addEventListener('resize', syncCanvas);
+
+        syncCanvas();
+        video.addEventListener('play', handlePlay);
+        video.addEventListener('seeked', handleSeeked);
+        video.addEventListener('pause', handleSeeked);
+        video.addEventListener('canplay', syncCanvas);
+
+        // Cleanup
+        const cleanup = () => {
+            resizeObserver.disconnect();
+            video.removeEventListener('play', handlePlay);
+            video.removeEventListener('seeked', handleSeeked);
+            video.removeEventListener('pause', handleSeeked);
+            video.removeEventListener('canplay', syncCanvas);
+            window.removeEventListener('resize', syncCanvas);
+        };
+        
+        // Store cleanup for later
+        video.dataset.bboxCleanup = 'registered';
     }
  
     showStep(1);

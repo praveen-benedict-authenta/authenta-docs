@@ -51,7 +51,7 @@
             <div id="step1-content" class="mb-6 step-content">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold">Select Your Analysis Model</h2>
-                    <button id="view-history-btn" class="text-[#6968ae] hover:underline text-sm font-medium">
+                    <button id="view-history-btn-step1" class="text-[#6968ae] hover:underline text-sm font-medium">
                         View History
                     </button>
                 </div>
@@ -157,48 +157,87 @@
                 
                 <div class="flex justify-between mt-4">
                     <button id="back-step2" class="border border-[#6968ae] text-[#6968ae] px-6 py-2 rounded-lg hover:bg-gray-50">Back</button>
-                    <button id="next-step2" type="button" class="text-white px-8 py-3 rounded-xl font-medium hover:shadow-lg transform transition-all duration-300 cursor-not-allowed bg-gray-400" disabled aria-disabled="true"F>
+                    <button id="next-step2" type="button" class="text-white px-8 py-3 rounded-xl font-medium hover:shadow-lg transform transition-all duration-300 cursor-not-allowed bg-gray-400" disabled aria-disabled="true">
                         Next
                     </button>
                 </div>
             </div>
 
-            <!-- History Section -->
+            <!-- Processing Section -->
             <div id="step3-content" class="hidden step-content">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold">Step 3: Processing</h2>
                 </div>
-                <div id="current-process" class="mb-6">
+                
+                <!-- Processing Status -->
+                <div id="processing-status" class="mb-6">
                     <p class="text-gray-600 mb-2"><span class="font-medium">Processing File:</span> <span id="processing-file-name"></span></p>
                     <div class="w-full bg-gray-200 rounded-full h-2.5 mb-4">
                         <div id="process-progress" class="bg-[#6968ae] h-2.5 rounded-full w-0 transition-all duration-500"></div>
                     </div>
-                </div>
-                <div id="history-section" class="hidden">
-                    <h3 class="text-lg font-medium mb-4">Processing History</h3>
-                    <div id="history" class="divide-y divide-gray-200 max-h-96 overflow-y-auto">
-                        <!-- History items will be inserted here -->
+                    <div class="bg-blue-50 border border-blue-200 rounded p-3">
+                        <p class="text-blue-700 text-sm">
+                            <span class="inline-block animate-pulse mr-2">●</span>
+                            Processing in progress... Please wait.
+                        </p>
                     </div>
                 </div>
-                <div class="flex justify-between mt-6">
-                    <button id="back-step3" class="border border-[#6968ae] text-[#6968ae] px-6 py-2 rounded-lg hover:bg-gray-50">Back</button>
-                    <button id="process-new" class="bg-[#6968ae] text-white px-6 py-2 rounded-lg hover:opacity-90">
+                
+                <!-- Results View -->
+                <div id="results-view" class="hidden mb-6">
+                    <div id="results-content">
+                        <!-- Results will be displayed here -->
+                    </div>
+                </div>
+                
+                <div class="flex justify-center mt-6 gap-3">
+                    <button id="view-history-btn" class="border-2 border-[#6968ae] text-[#6968ae] px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors font-medium hidden">
+                        View History
+                    </button>
+                    <button id="process-new" class="px-6 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-all hidden" style="background-color: #6968ae;">
+                        Start New
+                    </button>
+                </div>
+            </div>
+            
+            <!-- History View -->
+            <div id="history-content" class="hidden step-content">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">Processing History</h2>
+                    <button id="close-history" class="text-[#6968ae] hover:underline text-sm font-medium">
+                        Close History
+                    </button>
+                </div>
+                
+                <div id="history-list" class="divide-y divide-gray-200 max-h-[500px] overflow-y-auto bg-white rounded-lg shadow">
+                    <!-- History items will be inserted here -->
+                </div>
+                
+                <div class="flex justify-center mt-6">
+                    <button id="process-new-from-history" class="px-6 py-2 rounded-lg text-white font-medium hover:opacity-90 transition-all" style="background-color: #6968ae;">
                         Process New File
                     </button>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Modal for Results -->
-    <div id="resultsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center">
-        <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold">Processing Results</h3>
-                <button class="modal-close text-gray-500 hover:text-gray-700">&times;</button>
-            </div>
-            <div id="resultContent" class="overflow-auto max-h-[70vh]">
-                <!-- Results will be displayed here -->
+            
+            <!-- Individual Result View -->
+            <div id="result-detail-content" class="hidden step-content">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">Result Details</h2>
+                    <button id="close-result-detail" class="text-[#6968ae] hover:underline text-sm font-medium">
+                        Back to History
+                    </button>
+                </div>
+                
+                <div id="result-detail-view">
+                    <!-- Detailed result will be displayed here -->
+                </div>
+                
+                <div class="flex justify-center mt-6">
+                    <button id="back-to-history-btn" class="border border-[#6968ae] text-[#6968ae] px-6 py-2 rounded-lg hover:bg-gray-50">
+                        Back to History
+                    </button>
+                </div>
             </div>
         </div>
     </div>
