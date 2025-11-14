@@ -7,7 +7,7 @@ import { WebSocketServer } from 'ws';
 import { Low } from 'lowdb';
 import { JSONFile } from 'lowdb/node';
 import { fileURLToPath } from 'url';
-import { spawn } from 'child_process';
+import archiver from 'archiver';
 
 // Initialize database
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -122,6 +122,15 @@ async function setupRabbitMQ() {
 
           // Notify connected clients
           const update = { ...job };
+          
+          // Add heatmap info to the update
+          if (job.resultFolder) {
+            const heatmapsPath = path.join(SHARED_DIR, job.resultFolder, 'heatmaps');
+            const heatmapsExist = fs.existsSync(heatmapsPath) && fs.readdirSync(heatmapsPath).length > 0;
+            update.hasHeatmaps = job.outputType === 'result + heatmaps';
+            update.heatmapsReady = heatmapsExist;
+          }
+          
           clients.forEach((client) => {
             if (client.readyState === 1) {
               client.send(JSON.stringify(update));
@@ -150,7 +159,12 @@ app.get('/api/history', async (req, res) => {
       const jobWithMeta = { ...job };
       if (job.resultFolder) {
         const heatmapsPath = path.join(SHARED_DIR, job.resultFolder, 'heatmaps');
-        jobWithMeta.hasHeatmaps = fs.existsSync(heatmapsPath) && fs.readdirSync(heatmapsPath).length > 0;
+        const heatmapsExist = fs.existsSync(heatmapsPath) && fs.readdirSync(heatmapsPath).length > 0;
+        
+        // Set hasHeatmaps to true if heatmaps were requested (regardless of existence)
+        jobWithMeta.hasHeatmaps = job.outputType === 'result + heatmaps';
+        // Add a flag to indicate if they actually exist
+        jobWithMeta.heatmapsReady = heatmapsExist;
       }
       return jobWithMeta;
     });
@@ -333,6 +347,57 @@ app.get('/api/heatmaps/:jobId/file/:filename', async (req, res) => {
     console.error("Error serving heatmap:", err);
     if (!res.headersSent) {
       res.status(500).json({ error: "Failed to load heatmap file" });
+    }
+  }
+});
+
+// Download all heatmaps as ZIP
+app.get('/api/heatmaps/:jobId/download-all', async (req, res) => {
+  try {
+    await db.read();
+    const job = db.data.jobs.find((j) => j.id === req.params.jobId);
+
+    if (!job || !job.resultFolder) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    const heatmapsPath = path.join(SHARED_DIR, job.resultFolder, 'heatmaps');
+
+    if (!fs.existsSync(heatmapsPath)) {
+      return res.status(404).json({ error: 'No heatmaps found for this job' });
+    }
+
+    const files = fs.readdirSync(heatmapsPath).filter((f) => !f.startsWith('.'));
+
+    if (files.length === 0) {
+      return res.status(404).json({ error: 'No heatmap files to download' });
+    }
+
+    // Set response headers for ZIP download
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="heatmaps_${req.params.jobId}.zip"`);
+
+    // Create archiver instance
+    const archive = archiver('zip', {
+      zlib: { level: 9 } // Compression level
+    });
+
+    // Pipe archive to response
+    archive.pipe(res);
+
+    // Add files to archive
+    for (const filename of files) {
+      const filePath = path.join(heatmapsPath, filename);
+      archive.file(filePath, { name: filename });
+    }
+
+    // Finalize archive
+    await archive.finalize();
+
+  } catch (error) {
+    console.error('Error creating ZIP:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to create ZIP file' });
     }
   }
 });

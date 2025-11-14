@@ -126,40 +126,49 @@
             </div>
 
             <!-- File Upload -->
-            <div id="step2-content" class="mb-6 hidden step-content">
+            <div id="step2-content" class="mb-6 hidden step-content flex flex-col h-full">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold">Step 2: Upload Media</h2>
                     <div class="flex space-x-2">
                         <button id="change-model" class="text-[#6968ae] hover:underline">Change Model</button>
                     </div>
                 </div>
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center" id="dropzone">
-                    <input type="file" id="fileInput" class="hidden">
-                    <div class="mb-4">
-                        <p class="text-gray-600 mb-2"><span class="font-medium">Selected Model:</span> <span id="selected-model-display"></span></p>
-                        <button id="browseBtn" class="text-[#6968ae] font-semibold hover:text-blue-600">Browse files</button>
-                    </div>
-                    <div id="filePreview" class="hidden">
-                        <img id="imagePreview" class="max-h-48 mx-auto mb-4 hidden">
-                        <video id="videoPreview" class="max-h-48 mx-auto mb-4 hidden" controls></video>
-                        <p id="fileName" class="text-sm text-gray-600"></p>
-                    </div>
-                </div>
                 
-                <!-- Output Options -->
-                <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-                    <label class="flex items-center cursor-pointer">
-                        <input type="checkbox" id="includeHeatmaps" class="mr-2 w-4 h-4 text-[#6968ae] rounded focus:ring-[#6968ae]" checked>
-                        <span class="text-gray-700">Include heatmaps with results</span>
-                    </label>
-                    <p class="text-xs text-gray-500 mt-1 ml-6">Generate visual heatmap overlays showing detection confidence</p>
-                </div>
-                
-                <div class="flex justify-between mt-4">
-                    <button id="back-step2" class="border border-[#6968ae] text-[#6968ae] px-6 py-2 rounded-lg hover:bg-gray-50">Back</button>
-                    <button id="next-step2" type="button" class="text-white px-8 py-3 rounded-xl font-medium hover:shadow-lg transform transition-all duration-300 cursor-not-allowed bg-gray-400" disabled aria-disabled="true">
+                <!-- Fixed Navigation Buttons at Top -->
+                <div class="flex justify-between mb-4 pb-4 border-b border-gray-200">
+                    <button id="back-step2-top" class="border border-[#6968ae] text-[#6968ae] px-6 py-2 rounded-lg hover:bg-gray-50">Back</button>
+                    <button id="next-step2-top" type="button" class="text-white px-8 py-3 rounded-xl font-medium hover:shadow-lg transform transition-all duration-300 cursor-not-allowed bg-gray-400" disabled aria-disabled="true">
                         Next
                     </button>
+                </div>
+                
+                <div class="flex-1 overflow-y-auto">
+                    <div class="border-2 border-dashed border-[#6968ae] rounded-lg p-8 text-center bg-gradient-to-br from-blue-50 to-purple-50 hover:border-[#5857a0] transition-all duration-300" id="dropzone">
+                        <input type="file" id="fileInput" class="hidden">
+                        <div class="mb-4">
+                            <svg class="w-16 h-16 mx-auto mb-4 text-[#6968ae]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                            </svg>
+                            <p class="text-gray-600 mb-2"><span class="font-medium">Selected Model:</span> <span id="selected-model-display"></span></p>
+                            <p class="text-lg font-semibold text-gray-700 mb-2">Drag & Drop your file here</p>
+                            <p class="text-sm text-gray-500 mb-4">or</p>
+                            <button id="browseBtn" style="background-color: #6968ae; color: white; padding: 0.5rem 1.5rem; border-radius: 0.5rem; font-weight: 600; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#5857a0'" onmouseout="this.style.backgroundColor='#6968ae'">Browse files</button>
+                        </div>
+                        <div id="filePreview" class="hidden">
+                            <img id="imagePreview" class="max-h-48 mx-auto mb-4 hidden rounded-lg shadow-lg">
+                            <video id="videoPreview" class="max-h-48 mx-auto mb-4 hidden rounded-lg shadow-lg" controls></video>
+                            <p id="fileName" class="text-sm text-gray-700 font-medium"></p>
+                        </div>
+                    </div>
+                    
+                    <!-- Output Options -->
+                    <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" id="includeHeatmaps" class="mr-2 w-4 h-4 text-[#6968ae] rounded focus:ring-[#6968ae]" checked>
+                            <span class="text-gray-700">Include heatmaps with results</span>
+                        </label>
+                        <p class="text-xs text-gray-500 mt-1 ml-6">Generate visual heatmap overlays showing detection confidence</p>
+                    </div>
                 </div>
             </div>
 
