@@ -343,4 +343,3 @@ Use environment variables or a secret manager.
 - [Learn about quotas](/api/quotas-and-credits)
 - [Review authentication](/api/authentication)
 - [Explore API endpoints](/api/reference/media)
-- [Try the Postman collection](/api/postman-collection)
