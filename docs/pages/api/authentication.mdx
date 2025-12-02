@@ -1,0 +1,183 @@
+# Authentication
+
+Authenta’s API uses a secure, header-based authentication mechanism.  
+Every request must include your **Client ID** and **Client Secret**, which are generated after your API access request is approved.
+
+This page explains how to authenticate with the API and how authentication-related errors are returned.
+
+## How Authentication Works
+
+Every API request must include:
+
+- **x-client-id** – identifies you
+- **x-client-secret** – verifies the request is from you
+
+These credentials belong to **your user account**, and each API key comes with its own permissions and quotas.
+
+## Required Authentication Headers
+
+All API requests must include the following headers:
+
+```http
+x-client-id: <your_client_id>
+x-client-secret: <your_client_secret>
+```
+
+Example request:
+
+```http
+GET /api/media HTTP/1.1
+Host: platform.authenta.ai
+x-client-id: 123abc456xyz
+x-client-secret: my-secret
+```
+
+## Example in cURL
+
+```bash
+curl -X GET "https://platform.authenta.ai/api/media" \
+  -H "x-client-id: YOUR_CLIENT_ID" \
+  -H "x-client-secret: YOUR_CLIENT_SECRET"
+```
+
+## Example in JavaScript (Node.js)
+
+```js
+const res = await fetch('https://platform.authenta.ai/api/media', {
+  headers: {
+    'x-client-id': process.env.AUTHENTA_CLIENT_ID,
+    'x-client-secret': process.env.AUTHENTA_CLIENT_SECRET,
+  },
+});
+
+const body = await res.json();
+platform.log(body);
+```
+
+## Example in Python
+
+```python
+import requests
+
+headers = {
+    "x-client-id": "YOUR_CLIENT_ID",
+    "x-client-secret": "YOUR_CLIENT_SECRET"
+}
+
+response = requests.get("https://platform.authenta.ai/api/media", headers=headers)
+print(response.json())
+```
+
+# Authentication Error Responses
+
+Authenta uses a structured error format containing:
+
+- **code** — unique error identifier
+- **type** — error classification
+- **message** — human-readable explanation
+
+These are defined in your TypeScript layer using the `ErrorCode` class.
+
+Below are the authentication-related error codes your API may return.
+
+## ❌ IAM001 — Invalid Client ID / Secret
+
+Returned when the client ID or client secret is missing, invalid, revoked, or does not match.
+
+| Field       | Value                       |
+| ----------- | --------------------------- |
+| **code**    | `IAM001`                    |
+| **type**    | `UNAUTHENTICATED`           |
+| **message** | `You are not authenticated` |
+| **status**  | `401`                       |
+
+### Example Response
+
+```json
+{
+  "code": "IAM001",
+  "type": "UNAUTHENTICATED",
+  "message": "You are not authenticated"
+}
+```
+
+## ❌ IAM002 — Missing Required Permissions
+
+Returned when the key is valid but does not have the required permission
+(e.g., a key with only READ permission attempts a DELETE or POST).
+
+| Field       | Value                    |
+| ----------- | ------------------------ |
+| **code**    | `IAM002`                 |
+| **type**    | `UNAUTHORIZED`           |
+| **message** | `You are not authorized` |
+| **status**  | `403`                    |
+
+### Example Response
+
+```json
+{
+  "code": "IAM002",
+  "type": "UNAUTHORIZED",
+  "message": "You are not authorized"
+}
+```
+
+## ❌ AA001 — Quota Limit Reached
+
+Returned when your **Query** or **Mutation** quota has been exhausted.
+
+| Field       | Value               |
+| ----------- | ------------------- |
+| **code**    | `AA001`             |
+| **type**    | `CLIENT_ERROR`      |
+| **message** | `API limit reached` |
+| **status**  | `429`               |
+
+### Example Response
+
+```json
+{
+  "code": "AA001",
+  "type": "CLIENT_ERROR",
+  "message": "API limit reached"
+}
+```
+
+# Error Handling Flow
+
+When the API receives a request, it performs the following checks in order:
+
+1. **Validate Client ID**
+2. **Validate Client Secret**
+3. **Check permissions (Read / Write / Delete)**
+4. **Check Query/Mutation quotas**
+5. **Check credit balance (for media processing)**
+
+Depending on which check fails, the appropriate error code is returned.
+
+# Best Practices for Authentication
+
+### 🔒 1. Keep your Client Secret private
+
+Store it using environment variables or secret managers.
+
+### 🔑 2. Use separate keys for separate environments
+
+Production, staging, CI, automation, etc.
+
+### 🔄 3. Rotate secrets periodically
+
+You can regenerate your secret anytime.
+
+### 📉 4. Monitor quota usage
+
+Your key will return `AA001` once quotas are exhausted.
+
+# Next Steps
+
+Once authentication is set up:
+
+- [Learn how to **use the API**](/api/making-api-calls)
+- [View how **quotas & credits** work](/api/quotas-and-credits)
+- [Explore the **Media API Reference**](/api/reference/media)

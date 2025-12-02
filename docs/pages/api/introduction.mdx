@@ -1,0 +1,148 @@
+# Authenta API Overview
+
+Authenta provides a secure, scalable API that allows customers to integrate deepfake-detection capabilities directly into their own applications and services.  
+With API access enabled, you can programmatically upload media, check analysis results, and manage previously processed items using authenticated and quota-controlled API calls.
+
+The Authenta API is designed for organizations that require automated or large-scale media validation workflows beyond what is available in the Authenta web console.
+
+## Why Use the Authenta API?
+
+Authenta’s API enables you to:
+
+- **Automate deepfake detection** pipelines in your internal systems
+- **Upload media programmatically** for evaluation
+- **Fetch results and metadata** without using the UI
+- **Integrate trust & safety checks** directly into your product
+- **Manage media lifecycle** (upload, fetch, delete)
+
+The API uses the same detection engine and produces the same results as the Authenta platform—just accessible via secure endpoints.
+
+## High-Level Workflow
+
+API access is not immediately available by default.  
+Instead, the access flow is:
+
+1. **User requests API access** from their Authenta console → Settings → API Access
+2. **User submits expected Query & Mutation quotas**
+3. **Authenta Admin reviews the request**
+4. Once approved, the user can:
+   - Generate **API keys** (Client ID & Client Secret)
+   - Allocate quotas per key
+   - Start using the API
+
+## Authentication Model
+
+All API calls require two headers:
+
+```http
+x-client-id: <your_client_id>
+x-client-secret: <your_client_secret>
+```
+
+These are generated after your API access is approved.
+The **client secret is shown only once**, so make sure to store it securely.
+
+Authenta uses a simple header-based authentication system suitable for on-prem and SaaS environments. No OAuth or session tokens are required.
+
+## API Operations & Request Types
+
+Authenta internally classifies requests into two types:
+
+### **Query Requests**
+
+- Correspond to `GET` routes
+- Used for reading data
+  Examples:
+
+  - Fetch all media
+  - Fetch a media item by ID
+
+### **Mutation Requests**
+
+- Correspond to `POST`, `PUT`, `DELETE` routes
+- Used for modifying data
+  Examples:
+
+  - Upload media
+  - Delete media
+
+Your allowed quotas for these two types determine how many API calls you can make.
+
+## Quotas
+
+When requesting API access, users must specify:
+
+- **Mutation Quota**
+  (How many POST/PUT/DELETE operations you need)
+
+- **Query Quota**
+  (How many GET operations you expect)
+
+**The Query Quota must be at least 1.5× the Mutation Quota.**
+
+Example:
+
+| Type     | Example Value |
+| -------- | ------------- |
+| Mutation | 30            |
+| Query    | 45+           |
+
+These quotas are applied at the **account level**, and you can allocate portions of them to individual API keys.
+
+When your quota is exhausted:
+
+- Further requests return **HTTP 429 (Quota Exceeded)**
+- You must request a quota increase from the Authenta console
+
+## Credits System
+
+Authenta uses a credit-based billing system for all media operations.
+
+- When you upload or process media **via the API**, credits are consumed
+- Credit deduction happens exactly the same way as when using the Authenta UI
+- Query-only endpoints (such as fetching metadata) **do not** consume credits
+
+Credits and quotas operate independently:
+
+| Resource    | Purpose                                        |
+| ----------- | ---------------------------------------------- |
+| **Credits** | Charged for media processing                   |
+| **Quotas**  | Limit the number of API calls (query/mutation) |
+
+A user can have available API quota but insufficient credits required for processing.
+
+## TypeScript API Types
+
+Authenta ships first-class TypeScript types describing all API request and response structures.
+These types are included in the `api-types.d.ts` file and define:
+
+- Media object shapes
+- Upload request body schema
+- Detection metadata
+- Error responses
+- Pagination types
+- API route definitions
+
+This ensures type-safe usage for integrations built in TypeScript or Node.js.
+(If needed, you can import these types directly into your application.)
+
+## Supported API Endpoints
+
+The current set of public API routes includes:
+
+- **POST `/api/media`** — Upload Media _(Mutation)_
+- **GET `/api/media`** — Fetch All Media _(Query)_
+- **GET `/api/media/{mid}`** — Fetch One Media _(Query)_
+- **DELETE `/api/media/{mid}`** — Delete Media _(Mutation)_
+
+Full details are available in [References](/api/reference/media)
+
+## Next Steps
+
+To begin integrating the API:
+
+1. [Continue to **Requesting API Access**](/api/api-access.mdx)
+2. [Then **Generate API Keys**](/api/managing-api-keys.mdx)
+3. [Finally, follow **Using the API**](/api/making-api-calls.mdx)
+
+Authenta’s API enables powerful automated trust-analysis workflows, and this section of the documentation will guide you through each step of the integration.
