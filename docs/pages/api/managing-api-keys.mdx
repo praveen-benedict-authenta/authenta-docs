@@ -1,0 +1,189 @@
+## What Are API Keys?
+
+API keys are credentials that identify and authorize you when making requests to Authenta’s API.
+
+Each key contains:
+
+- **Client ID** → Acts as the public identifier
+- **Client Secret** → A private secret used to authenticate
+- **Assigned permissions**
+- **Allocated Query quota**
+- **Allocated Mutation quota**
+
+> ⚠️ The **client secret is shown only once** when the key is created.  
+> You must store it securely — Authenta does _not_ display it again.
+
+## Where to Manage API Keys
+
+Navigate to:
+
+**Settings → API Access → API Keys**
+
+Here you will see:
+
+- A list of your existing keys
+- Their assigned permissions
+- Usage of quota per key
+- Options to create or revoke keys
+
+If you have no keys yet, you will see a **Generate API Key** button.
+
+## Creating a New API Key
+
+Click **Generate API Key** to open the creation dialog.  
+You will be prompted to configure:
+
+### 1. Key Name
+
+A label used to help you identify the purpose of the key.
+
+Examples:
+
+- `Backend-Server-Key`
+- `Mobile-App-Key`
+- `Video-Pipeline-Key`
+
+### 2. Permissions
+
+Authenta supports the following permission types:
+
+| Permission | Allows                                   |
+| ---------- | ---------------------------------------- |
+| **Read**   | Fetching media, viewing metadata (`GET`) |
+| **Write**  | Uploading media (`POST`)                 |
+| **Delete** | Removing media (`DELETE`)                |
+
+Permissions restrict which API operations a key may perform.  
+If a key does not have the required permission, requests will return:
+
+```
+
+403 — Forbidden (You are not authorized)
+
+```
+
+### 3. Quota Allocation (Per Key)
+
+Since quotas are assigned **per-user**, each API key can use only a portion of your total:
+
+- **Query quota**
+- **Mutation quota**
+
+You can choose how much of your available quota to allocate to a specific key.
+
+Examples:
+
+| Total User Quota       | Key Allocation Example |
+| ---------------------- | ---------------------- |
+| 60 Query / 40 Mutation | Key A → 20Q / 10M      |
+|                        | Key B → 40Q / 30M      |
+
+Once allocated, the key cannot exceed its assigned quota.  
+If it does, the API returns:
+
+```
+
+429 — Quota Exceeded
+
+```
+
+## Viewing API Keys
+
+After a key is created, you will see:
+
+- Key name
+- Client ID
+- Permissions
+- Query quota usage
+- Mutation quota usage
+- Date created
+- Options to manage the key
+
+### Viewing the Client Secret
+
+After creation, the **client secret is not shown again**.  
+If you lose the secret:
+
+- You must **regenerate** it
+- The previous secret becomes invalid immediately
+
+## Regenerating the Client Secret
+
+If your secret has been lost or compromised:
+
+1. Open the key details
+2. Click **Regenerate Secret**
+3. Copy the new secret immediately
+4. Update your services to use the new secret
+
+A regenerated secret:
+
+- Invalidates the old secret
+- Does **not** change your Client ID
+- Does **not** reset key-level quotas
+- Does **not** affect your usage history
+
+## Revoking an API Key
+
+If a key is no longer needed:
+
+1. Open the key details
+2. Click **Revoke Key**
+3. Confirm the action
+
+Revoking a key:
+
+- Immediately invalidates both Client ID & Client Secret
+- Prevents all further requests using that key
+- Does not delete historical usage or logs
+- Frees previously allocated quota back to your user account (optional depending on UI behavior)
+
+You may revoke a key at any time for security or cleanup purposes.
+
+## Best Practices for API Keys
+
+To maintain secure and stable integrations:
+
+### 🔒 1. Store Secrets Securely
+
+Use environment variables, secret managers, or encrypted credential stores.  
+Never hard-code secrets into your source code.
+
+### 🚫 2. Do Not Share API Keys
+
+Keys are tied to your **user account**.  
+Sharing keys means sharing access to your quota and credits.
+
+### 🔄 3. Rotate Keys Regularly
+
+Regenerate secrets periodically to reduce long-term exposure risk.
+
+### 🎯 4. Use Separate Keys for Separate Systems
+
+Examples:
+
+- One key for your backend server
+- Another for automated batch processing
+- Another for testing environments
+
+This gives you fine-grained control and safer isolation.
+
+### 📉 5. Monitor Quota Usage
+
+Regularly review how your keys consume:
+
+- Query quota
+- Mutation quota
+- Credits (for media processing)
+
+If your integrations grow, consider increasing your user-level quota.
+
+## Next Steps
+
+Once your key is created and configured:
+
+- [Learn how to **authenticate API calls**](/api/authentication)
+- [Start making **media requests**](/api/making-api-calls)
+- [View endpoint details in the **Media API Reference**](/api/reference/media)
+
+Managing API keys correctly ensures secure and reliable access to the Authenta API.
