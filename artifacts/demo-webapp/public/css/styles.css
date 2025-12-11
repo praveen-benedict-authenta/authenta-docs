@@ -63,12 +63,14 @@
 }
 
 #dropzone {
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
 }
 
 #dropzone.drag-over {
-    border-color: #6968ae;
-    background-color: rgba(105, 104, 174, 0.08);
+    border-color: #5857a0 !important;
+    background: linear-gradient(to bottom right, rgba(105, 104, 174, 0.15), rgba(139, 92, 246, 0.15)) !important;
+    transform: scale(1.02);
+    box-shadow: 0 8px 16px rgba(105, 104, 174, 0.2);
 }
 
 .history-item {

@@ -12,6 +12,7 @@
   "description": "Demo web application to demonstrate Authenta capabilities",
   "dependencies": {
     "amqplib": "^0.10.3",
+    "archiver": "^7.0.1",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "express-fileupload": "^1.5.2",

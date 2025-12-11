@@ -4,11 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentStep = 1;
     const historyData = new Map();
 
-    // Common DOM references
     const dropzone = document.getElementById('dropzone');
     const fileInput = document.getElementById('fileInput');
     const browseBtn = document.getElementById('browseBtn');
-    const nextStep2Btn = document.getElementById('next-step2');
+    const nextStep2Btn = document.getElementById('next-step2-top');
     const imagePreview = document.getElementById('imagePreview');
     const videoPreview = document.getElementById('videoPreview');
     const filePreview = document.getElementById('filePreview');
@@ -234,24 +233,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     document.getElementById('close-history').addEventListener('click', () => {
+        stopHeatmapAutoRefresh();
         showStep(1);
     });
     
     document.getElementById('close-result-detail').addEventListener('click', () => {
+        stopHeatmapAutoRefresh();
         showHistoryPage();
     });
     
     document.getElementById('back-to-history-btn').addEventListener('click', () => {
+        stopHeatmapAutoRefresh();
         showHistoryPage();
     });
     
     document.getElementById('process-new-from-history').addEventListener('click', () => {
+        stopHeatmapAutoRefresh();
         resetForNewProcess();
         showStep(1);
     });
 
-    // Step 2 navigation
-    document.getElementById('back-step2').addEventListener('click', () => {
+    // Step 2 navigation (top button only)
+    document.getElementById('back-step2-top').addEventListener('click', () => {
         showStep(1);
     });
 
@@ -313,6 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateUploadButton() {
         const canProceed = Boolean(selectedModel && selectedFile);
+        
         nextStep2Btn.disabled = !canProceed;
         nextStep2Btn.classList.toggle('btn-disabled', !canProceed);
         
@@ -339,6 +343,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     function resetForNewProcess() {
+        // Stop any active auto-refresh
+        stopHeatmapAutoRefresh();
+        
         // Reset state
         selectedFile = null;
         currentJobId = null;
@@ -361,37 +368,39 @@ document.addEventListener('DOMContentLoaded', () => {
  
     let currentJobId = null;
     
-    document.getElementById('next-step2').addEventListener('click', async () => {
-        if (!selectedFile || !selectedModel) return;
+    // Handle both next buttons (top and bottom)
+    function handleNextStep2Click() {
+        return async () => {
+            if (!selectedFile || !selectedModel) return;
 
-        showStep(3);
-        document.getElementById('processing-file-name').textContent = selectedFile.name;
-        document.getElementById('process-progress').style.width = '0%';
-        document.getElementById('processing-status').classList.remove('hidden');
-        document.getElementById('results-view').classList.add('hidden');
-        
-        // Hide action buttons during processing
-        document.getElementById('view-history-btn').classList.add('hidden');
-        document.getElementById('process-new').classList.add('hidden');
-
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-        formData.append('model', selectedModel);
-        
-        // Check if heatmaps are requested
-        const includeHeatmaps = document.getElementById('includeHeatmaps').checked;
-        formData.append('outputType', includeHeatmaps ? 'result + heatmaps' : 'result');
-
-        try {
-            document.getElementById('next-step2').disabled = true;
-            document.getElementById('process-progress').style.width = '30%';
+            showStep(3);
+            document.getElementById('processing-file-name').textContent = selectedFile.name;
+            document.getElementById('process-progress').style.width = '0%';
+            document.getElementById('processing-status').classList.remove('hidden');
+            document.getElementById('results-view').classList.add('hidden');
             
-            const response = await fetch('/api/process', {
-                method: 'POST',
-                body: formData
-            });
+            // Hide action buttons during processing
+            document.getElementById('view-history-btn').classList.add('hidden');
+            document.getElementById('process-new').classList.add('hidden');
 
-            document.getElementById('process-progress').style.width = '60%';
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('model', selectedModel);
+            
+            // Check if heatmaps are requested
+            const includeHeatmaps = document.getElementById('includeHeatmaps').checked;
+            formData.append('outputType', includeHeatmaps ? 'result + heatmaps' : 'result');
+
+            try {
+                nextStep2Btn.disabled = true;
+                document.getElementById('process-progress').style.width = '30%';
+                
+                const response = await fetch('/api/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                document.getElementById('process-progress').style.width = '60%';
 
             const result = await response.json();
             if (response.ok) {
@@ -409,9 +418,12 @@ document.addEventListener('DOMContentLoaded', () => {
             backStep3Btn.disabled = false;
             backStep3Btn.classList.remove('cursor-not-allowed', 'opacity-50');
         } finally {
-            document.getElementById('next-step2').disabled = false;
+            nextStep2Btn.disabled = false;
         }
-    });
+    };
+    }
+    
+    nextStep2Btn.addEventListener('click', handleNextStep2Click());
  
     // Load history from server on page load
     async function loadHistory() {
@@ -623,26 +635,54 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p class="text-xs text-gray-500 mt-2 text-center">Green boxes: Real | Red boxes: Fake</p>
                         </div>
                         
-                        ${heatmapVideos.length > 0 ? `
+                        ${item.hasHeatmaps && heatmapVideos.length === 0 ? `
+                            <!-- Heatmaps Generating Info -->
+                            <div>
+                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+                                    <svg class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <div class="flex-1">
+                                        <p class="text-sm text-blue-800 font-medium">Heatmaps are being generated</p>
+                                        <p class="text-sm text-blue-700 mt-1">This process may take a few minutes. The page will automatically check for updates.</p>
+                                        <div class="mt-3 flex items-center gap-2">
+                                            <div class="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                                            <span class="text-xs text-blue-600">Checking for heatmaps... <span id="refresh-countdown">30</span>s</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : heatmapVideos.length > 0 ? `
                             <!-- Heatmap Videos -->
                             <div>
-                                <h4 class="font-medium text-gray-700 mb-3">Heatmap Videos (${heatmapVideos.length})</h4>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="font-medium text-gray-700">Heatmap Videos (${heatmapVideos.length})</h4>
+                                    <a href="/api/heatmaps/${item.id}/download-all" 
+                                       style="background-color: #6968ae; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; transition: background-color 0.2s;" 
+                                       onmouseover="this.style.backgroundColor='#5857a0'" 
+                                       onmouseout="this.style.backgroundColor='#6968ae'">
+                                        <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                        </svg>
+                                        Download All
+                                    </a>
+                                </div>
+                                <div class="bg-white border border-gray-200 rounded-lg divide-y divide-gray-200">
                                     ${heatmapVideos.map((hm, index) => `
-                                        <div class="border border-gray-200 rounded-lg overflow-hidden bg-white">
-                                            <video 
-                                                id="detail-heatmap-video-${index}"
-                                                controls 
-                                                preload="metadata"
-                                                class="w-full bg-black"
-                                            >
-                                                <source src="${hm.url}" type="video/mp4">
-                                                Your browser does not support the video tag.
-                                            </video>
-                                            <div class="p-2 bg-gray-50 flex items-center justify-between">
-                                                <p class="text-xs text-gray-600">${hm.filename}</p>
-                                                <a href="${hm.url}" download="${hm.filename}" class="text-xs text-[#6968ae] hover:underline ml-2">Download</a>
+                                        <div class="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                                            <div class="flex items-center gap-3">
+                                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                                </svg>
+                                                <span class="text-sm text-gray-700">${hm.filename}</span>
                                             </div>
+                                            <a href="${hm.url}" download="${hm.filename}" 
+                                               class="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors text-sm flex items-center gap-2">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                                </svg>
+                                                Download
+                                            </a>
                                         </div>
                                     `).join('')}
                                 </div>
@@ -678,6 +718,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 useBoundingBoxes(video, canvas, boundingBoxData);
             }
         }
+        
+        // Auto-refresh logic for heatmaps in history detail view
+        if (item.hasHeatmaps && heatmapVideos.length === 0) {
+            startHeatmapAutoRefreshForDetail(item, result, 'df-1');
+        }
     }
     
     async function displayAC1ResultDetail(item, result) {
@@ -705,7 +750,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     <h3 class="text-lg font-semibold mb-4">Image Analysis Results</h3>
                     
                     <div class="grid grid-cols-1 gap-6">
-                        ${heatmapImage ? `
+                        ${item.hasHeatmaps && !heatmapImage ? `
+                            <!-- Heatmaps Generating Info -->
+                            <div>
+                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+                                    <svg class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <div class="flex-1">
+                                        <p class="text-sm text-blue-800 font-medium">Heatmap is being generated</p>
+                                        <p class="text-sm text-blue-700 mt-1">This process may take a few minutes. The page will automatically check for updates.</p>
+                                        <div class="mt-3 flex items-center gap-2">
+                                            <div class="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                                            <span class="text-xs text-blue-600">Checking for heatmap... <span id="refresh-countdown">30</span>s</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : heatmapImage ? `
                             <!-- Heatmap Image -->
                             <div>
                                 <h4 class="font-medium text-gray-700 mb-3">Detection Heatmap</h4>
@@ -727,6 +789,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
         `;
+        
+        // Auto-refresh logic for heatmaps in history detail view
+        if (item.hasHeatmaps && !heatmapImage) {
+            startHeatmapAutoRefreshForDetail(item, result, 'ac-1');
+        }
     } 
     
     function listenForJobCompletion(jobId, originalFile) {
@@ -852,26 +919,54 @@ document.addEventListener('DOMContentLoaded', () => {
                         <p class="text-xs text-gray-500 mt-2">Green boxes: Real | Red boxes: Fake</p>
                     </div>
                     
-                    ${heatmapVideos.length > 0 ? `
+                    ${item.hasHeatmaps && heatmapVideos.length === 0 ? `
+                        <!-- Heatmaps Generating Info with Auto-Refresh -->
+                        <div class="mt-6">
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+                                <svg class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <div class="flex-1">
+                                    <p class="text-sm text-blue-800 font-medium">Heatmaps are being generated</p>
+                                    <p class="text-sm text-blue-700 mt-1">This process may take a few minutes. The page will automatically check for updates.</p>
+                                    <div class="mt-3 flex items-center gap-2">
+                                        <div class="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                                        <span class="text-xs text-blue-600">Checking for heatmaps... <span id="refresh-countdown">30</span>s</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : heatmapVideos.length > 0 ? `
                         <!-- Heatmap Videos -->
                         <div class="mt-6">
-                            <h4 class="font-medium text-gray-700 mb-3">Heatmap Videos (${heatmapVideos.length})</h4>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="font-medium text-gray-700">Heatmap Videos (${heatmapVideos.length})</h4>
+                                <a href="/api/heatmaps/${item.id}/download-all" 
+                                   style="background-color: #6968ae; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; transition: background-color 0.2s;" 
+                                   onmouseover="this.style.backgroundColor='#5857a0'" 
+                                   onmouseout="this.style.backgroundColor='#6968ae'">
+                                    <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                    </svg>
+                                    Download All
+                                </a>
+                            </div>
+                            <div class="bg-white border border-gray-200 rounded-lg divide-y divide-gray-200">
                                 ${heatmapVideos.map((hm, index) => `
-                                    <div class="border border-gray-200 rounded-lg overflow-hidden bg-white">
-                                        <video 
-                                            id="heatmap-video-${index}"
-                                            controls 
-                                            preload="metadata"
-                                            class="w-full bg-black"
-                                        >
-                                            <source src="${hm.url}" type="video/mp4">
-                                            Your browser does not support the video tag.
-                                        </video>
-                                        <div class="p-2 bg-gray-50 flex items-center justify-between">
-                                            <p class="text-xs text-gray-600">${hm.filename}</p>
-                                            <a href="${hm.url}" download="${hm.filename}" class="text-xs text-[#6968ae] hover:underline ml-2">Download</a>
+                                    <div class="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                                        <div class="flex items-center gap-3">
+                                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                            </svg>
+                                            <span class="text-sm text-gray-700">${hm.filename}</span>
                                         </div>
+                                        <a href="${hm.url}" download="${hm.filename}" 
+                                           class="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors text-sm flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                            </svg>
+                                            Download
+                                        </a>
                                     </div>
                                 `).join('')}
                             </div>
@@ -906,6 +1001,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 useBoundingBoxes(video, canvas, boundingBoxData);
             }
         }
+        
+        // Auto-refresh logic for heatmaps
+        if (item.hasHeatmaps && heatmapVideos.length === 0) {
+            startHeatmapAutoRefresh(item, originalFile, result);
+        }
     }
     
     async function displayAC1Results(item, result) {
@@ -932,7 +1032,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
                     <h3 class="text-lg font-semibold mb-4">Image Analysis Results</h3>
                     
-                    ${heatmapImage ? `
+                    ${item.hasHeatmaps && !heatmapImage ? `
+                        <!-- Heatmaps Generating Info with Auto-Refresh -->
+                        <div class="mb-6">
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+                                <svg class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <div class="flex-1">
+                                    <p class="text-sm text-blue-800 font-medium">Heatmap is being generated</p>
+                                    <p class="text-sm text-blue-700 mt-1">This process may take a few minutes. The page will automatically check for updates.</p>
+                                    <div class="mt-3 flex items-center gap-2">
+                                        <div class="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                                        <span class="text-xs text-blue-600">Checking for heatmap... <span id="refresh-countdown">30</span>s</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ` : heatmapImage ? `
                         <!-- Heatmap Image -->
                         <div class="mb-6">
                             <h4 class="font-medium text-gray-700 mb-3">Detection Heatmap</h4>
@@ -953,6 +1070,131 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
         `;
+        
+        // Auto-refresh logic for heatmaps
+        if (item.hasHeatmaps && !heatmapImage) {
+            startHeatmapAutoRefreshForImage(item, result);
+        }
+    }
+    
+    // Auto-refresh functionality for DF-1 video heatmaps
+    let refreshInterval = null;
+    let countdownInterval = null;
+    
+    function startHeatmapAutoRefresh(item, originalFile, result) {
+        let countdown = 30;
+        
+        // Update countdown every second
+        countdownInterval = setInterval(() => {
+            countdown--;
+            const countdownEl = document.getElementById('refresh-countdown');
+            if (countdownEl) {
+                countdownEl.textContent = countdown;
+            }
+            if (countdown <= 0) {
+                countdown = 30;
+            }
+        }, 1000);
+        
+        // Check for heatmaps every 30 seconds
+        refreshInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`/api/heatmaps/${item.id}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.heatmaps && data.heatmaps.length > 0) {
+                        // Heatmaps found! Stop refreshing and re-render
+                        stopHeatmapAutoRefresh();
+                        await displayDF1Results(item, originalFile, result);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to check for heatmaps:', error);
+            }
+        }, 30000); // 30 seconds
+    }
+    
+    // Auto-refresh functionality for AC-1 image heatmaps
+    function startHeatmapAutoRefreshForImage(item, result) {
+        let countdown = 30;
+        
+        // Update countdown every second
+        countdownInterval = setInterval(() => {
+            countdown--;
+            const countdownEl = document.getElementById('refresh-countdown');
+            if (countdownEl) {
+                countdownEl.textContent = countdown;
+            }
+            if (countdown <= 0) {
+                countdown = 30;
+            }
+        }, 1000);
+        
+        // Check for heatmaps every 30 seconds
+        refreshInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`/api/heatmaps/${item.id}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.heatmaps && data.heatmaps.length > 0) {
+                        // Heatmap found! Stop refreshing and re-render
+                        stopHeatmapAutoRefresh();
+                        await displayAC1Results(item, result);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to check for heatmap:', error);
+            }
+        }, 30000); // 30 seconds
+    }
+    
+    function stopHeatmapAutoRefresh() {
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+        }
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+    }
+    
+    // Auto-refresh for detail view (history)
+    function startHeatmapAutoRefreshForDetail(item, result, modelType) {
+        let countdown = 30;
+        
+        // Update countdown every second
+        countdownInterval = setInterval(() => {
+            countdown--;
+            const countdownEl = document.getElementById('refresh-countdown');
+            if (countdownEl) {
+                countdownEl.textContent = countdown;
+            }
+            if (countdown <= 0) {
+                countdown = 30;
+            }
+        }, 1000);
+        
+        // Check for heatmaps every 30 seconds
+        refreshInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`/api/heatmaps/${item.id}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.heatmaps && data.heatmaps.length > 0) {
+                        // Heatmaps found! Stop refreshing and re-render
+                        stopHeatmapAutoRefresh();
+                        if (modelType === 'df-1') {
+                            await displayDF1ResultDetail(item, result);
+                        } else if (modelType === 'ac-1') {
+                            await displayAC1ResultDetail(item, result);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to check for heatmaps:', error);
+            }
+        }, 30000); // 30 seconds
     }
     
     function useBoundingBoxes(video, canvas, boundingBoxes) {
