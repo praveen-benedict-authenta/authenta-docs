@@ -78,6 +78,7 @@ export default defineConfig({
         items: [
           { text: 'Managing API Keys', link: '/api/managing-api-keys' },
           { text: 'Making Requests', link: '/api/making-api-calls' },
+          { text: 'Python SDK', link: '/api/python-sdk' },
           // { text: 'Errors & Troubleshooting', link: '/api/errors' },
           // { text: 'Postman Collection', link: '/api/postman-collection' },
         ],
@@ -87,6 +88,11 @@ export default defineConfig({
         collapsed: false,
         items: [{ text: 'Media API', link: '/api/reference/media' }],
       },
+      {
+        text: 'Postman Collection',
+        collapsed: false,
+        items: [{ text: 'Download Collection', link: '/api/postman' }],
+      }
       // {
       //   text: 'Resources',
       //   collapsed: false,
