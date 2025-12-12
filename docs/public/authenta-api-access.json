@@ -1,11 +1,11 @@
 {
 	"info": {
-		"_postman_id": "390507f2-0597-4670-8c5b-9c6f3b50c864",
+		"_postman_id": "6e2a2e9e-9151-492b-a841-47d88d28a19a",
 		"name": "Authenta-API",
 		"description": "## Authenta API Postman Collection Overview\n\nThe Authenta API Postman Collection lets you quickly test and integrate deepfake detection endpoints.  \nIt includes sample requests for uploading media, fetching analysis results, and managing your media library.\n\n**How to use:**\n\n1. **Import the Collection:**  \n    [Download the collection JSON](https://docs.authenta.ai/api/postman) and import it into Postman, or use our [Postman workspace link](https://vikitools.postman.co/workspace/Authenta~9a07b77e-561e-4b1c-8ac3-7c3172630f27/collection/34166368-390507f2-0597-4670-8c5b-9c6f3b50c864?action=share&creator=34166368).\n    \n2. **Tip:** Setting these as collection variables means you only need to enter them once, and all requests will use them automatically.\n    \n    - `authenta`: Your API domain (e.g., `https://platform.authenta.ai`)\n        \n    - `x-client-id`: Your API client ID\n        \n    - `x-client-secret`: Your API client secret\n        \n3. **Run Requests:**\n    \n    - **Upload Media:** Send a `POST` request with media details.\n        \n    - **Fetch Media:** Use `GET` to list or retrieve specific media.\n        \n    - **Delete Media:** Use `DELETE` to remove items.\n        \n\n**Tip:**  \nRefer to the [API documentation](https://docs.authenta.ai/api/introduction) for details on endpoints, authentication, and request/response formats.\n\nAll requests require valid API credentials.  \nFor help generating keys, see [API Authentication](https://docs.authenta.ai/api/authentication).",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "34166368",
-		"_collection_link": "https://authenta.postman.co/workspace/Authenta~9a07b77e-561e-4b1c-8ac3-7c3172630f27/collection/34166368-390507f2-0597-4670-8c5b-9c6f3b50c864?action=share&source=collection_link&creator=34166368"
+		"_collection_link": "https://authenta.postman.co/workspace/Authenta~9a07b77e-561e-4b1c-8ac3-7c3172630f27/collection/34166368-6e2a2e9e-9151-492b-a841-47d88d28a19a?action=share&source=collection_link&creator=34166368"
 	},
 	"item": [
 		{
@@ -165,24 +165,6 @@
 					""
 				]
 			}
-		}
-	],
-	"variable": [
-		{
-			"key": "authenta",
-			"value": ""
-		},
-		{
-			"key": "x-client-id",
-			"value": ""
-		},
-		{
-			"key": "x-client-secret",
-			"value": ""
-		},
-		{
-			"key": "mid",
-			"value": ""
 		}
 	]
 }
