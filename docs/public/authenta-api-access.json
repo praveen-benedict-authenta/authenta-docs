@@ -1,11 +1,11 @@
 {
 	"info": {
-		"_postman_id": "390507f2-0597-4670-8c5b-9c6f3b50c864",
-		"name": "API-Access",
-		"description": "## Authenta API Postman Collection Overview\n\nThe Authenta API Postman Collection lets you quickly test and integrate deepfake detection endpoints.  \nIt includes sample requests for uploading media, fetching analysis results, and managing your media library.\n\n**How to use:**\n\n1. **Import the Collection:**  \n    Use the provided link to add the collection to your Postman workspace.\n    \n2. **Configure Variables:**  \n    Set the `url` (or `dev`) variable to your API domain.  \n    Add your `x-client-id` and `x-client-secret` credentials—ideally as environment or collection variables for convenience.\n    \n3. **Run Requests:**\n    \n    - **Upload Media:** Send a `POST` request with media details.\n        \n    - **Fetch Media:** Use `GET` to list or retrieve specific media.\n        \n    - **Delete Media:** Use `DELETE` to remove items.\n        \n\n**Tip:**  \nRefer to the [API documentation](https:///api/reference/media) for details on endpoints, authentication, and request/response formats.\n\nAll requests require valid API credentials.  \nFor help generating keys, see [API Authentication](https:///api/authentication).",
+		"_postman_id": "6e2a2e9e-9151-492b-a841-47d88d28a19a",
+		"name": "Authenta-API",
+		"description": "## Authenta API Postman Collection Overview\n\nThe Authenta API Postman Collection lets you quickly test and integrate deepfake detection endpoints.  \nIt includes sample requests for uploading media, fetching analysis results, and managing your media library.\n\n**How to use:**\n\n1. **Import the Collection:**  \n    [Download the collection JSON](https://docs.authenta.ai/api/postman) and import it into Postman, or use our [Postman workspace link](https://vikitools.postman.co/workspace/Authenta~9a07b77e-561e-4b1c-8ac3-7c3172630f27/collection/34166368-390507f2-0597-4670-8c5b-9c6f3b50c864?action=share&creator=34166368).\n    \n2. **Tip:** Setting these as collection variables means you only need to enter them once, and all requests will use them automatically.\n    \n    - `authenta`: Your API domain (e.g., `https://platform.authenta.ai`)\n        \n    - `x-client-id`: Your API client ID\n        \n    - `x-client-secret`: Your API client secret\n        \n3. **Run Requests:**\n    \n    - **Upload Media:** Send a `POST` request with media details.\n        \n    - **Fetch Media:** Use `GET` to list or retrieve specific media.\n        \n    - **Delete Media:** Use `DELETE` to remove items.\n        \n\n**Tip:**  \nRefer to the [API documentation](https://docs.authenta.ai/api/introduction) for details on endpoints, authentication, and request/response formats.\n\nAll requests require valid API credentials.  \nFor help generating keys, see [API Authentication](https://docs.authenta.ai/api/authentication).",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "34166368",
-		"_collection_link": "https://vikitools.postman.co/workspace/Authenta~9a07b77e-561e-4b1c-8ac3-7c3172630f27/collection/34166368-390507f2-0597-4670-8c5b-9c6f3b50c864?action=share&source=collection_link&creator=34166368"
+		"_collection_link": "https://authenta.postman.co/workspace/Authenta~9a07b77e-561e-4b1c-8ac3-7c3172630f27/collection/34166368-6e2a2e9e-9151-492b-a841-47d88d28a19a?action=share&source=collection_link&creator=34166368"
 	},
 	"item": [
 		{
@@ -46,7 +46,7 @@
 						"media"
 					]
 				},
-				"description": "Use the following after _https://  \n  \n_{{url}} - to set the production domain  \n  \nFor e.g. -> https://{{url}}/api/"
+				"description": "## Upload a Media\n\nThis endpoint allows you to upload a media file (such as a video) to the Authenta platform. It is typically used to register new media assets for processing, storage, or further analysis.\n\n### Required Headers\n\n- `x-client-id`: `{{x-client-id}}`\n    \n- `x-client-secret`: `{{x-client-secret}}`\n    \n\n### Request URL\n\n```\nPOST {{authenta}}/api/media\n\n ```\n\n- `{{authenta}}`: Base URL for the Authenta API. Set this as an environment or collection variable for flexibility across environments.\n    \n\n### Sample Request Body\n\n``` json\n{\n  \"name\": \"test_00000214\",\n  \"contentType\": \"video/mp4\",\n  \"size\": 1414709,\n  \"modelType\": \"DF-1\"\n}\n\n ```\n\n#### Field Explanations\n\n- `name` (string): The name or identifier for the media file.\n    \n- `contentType` (string): The MIME type of the media (e.g., `video/mp4`).\n    \n- `size` (integer): The size of the media file in bytes.\n    \n- `modelType` (string): The model type associated with the media (e.g., `DF-1`).\n    \n\n### Variable Usage\n\n- `{{authenta}}`: Base API URL.\n    \n- `{{x-client-id}}`: Client ID for authentication.\n    \n- `{{x-client-secret}}`: Client secret for authentication.\n    \n\nRefer to these requests for additional context on authentication and media upload workflows."
 			},
 			"response": []
 		},
@@ -75,7 +75,8 @@
 						"api",
 						"media"
 					]
-				}
+				},
+				"description": "## Fetch Media\n\nRetrieves a list of media items from the Authenta API.\n\n### Required Headers\n\n- `x-client-id`: {{x-client-id}}\n    \n- `x-client-secret`: {{x-client-secret}}\n    \n\n### Endpoint\n\n```\nGET {{authenta}}/api/media\n\n ```\n\n### Variables\n\n- `authenta`: Base URL for the Authenta API\n    \n- `x-client-id`: Client ID for authentication\n    \n- `x-client-secret`: Client secret for authentication\n    \n\n### Example Usage\n\n```\nGET {{authenta}}/api/media\nHeaders:\n  x-client-id: {{x-client-id}}\n  x-client-secret: {{x-client-secret}}\n\n ```\n\n### Response\n\nReturns a JSON array of media items. The structure of each media item depends on your API implementation.\n\n---\n\n**Note:** Ensure that the required variables are defined in your environment or replaced with actual values before sending the request."
 			},
 			"response": []
 		},
@@ -96,16 +97,17 @@
 					}
 				],
 				"url": {
-					"raw": "{{authenta}}/api/media/6931355b9e540dd23c88a8df",
+					"raw": "{{authenta}}/api/media/{{mid}}",
 					"host": [
 						"{{authenta}}"
 					],
 					"path": [
 						"api",
 						"media",
-						"6931355b9e540dd23c88a8df"
+						"{{mid}}"
 					]
-				}
+				},
+				"description": "# Fetch a Particular Media\n\nRetrieves a Particular media from the Authenta API\n\n### Required Headers\n\n- `x-client-id`: {{x-client-id}}\n    \n- `x-client-secret`: {{x-client-secret}}\n    \n\n### Endpoint\n\n```\nGET {{authenta}}/api/media/{{mid}}\n\n ```\n\n### Variables\n\n- `{{authenta}}`: Base URL for the API\n    \n- `{{x-client-id}}`: Your client ID\n    \n- `{{x-client-secret}}`: Your client secret\n    \n\n### Example Usage\n\n```\ncurl --request GET '{{authenta}}/api/media/{{mid}}' \\\n  --header 'x-client-id: {{x-client-id}}' \\\n  --header 'x-client-secret: {{x-client-secret}}'\n\n ```\n\n### Response\n\nReturns the media resource corresponding to the provided media ID.\n\n- **200 OK**: Media resource details\n    \n- **401 Unauthorized**: Invalid or missing credentials\n    \n- **404 Not Found**: Media resource does not exist"
 			},
 			"response": []
 		},
@@ -126,16 +128,17 @@
 					}
 				],
 				"url": {
-					"raw": "{{authenta}}/api/media/693134f59e540dd23c88a8cf",
+					"raw": "{{authenta}}/api/media/{{mid}}",
 					"host": [
 						"{{authenta}}"
 					],
 					"path": [
 						"api",
 						"media",
-						"693134f59e540dd23c88a8cf"
+						"{{mid}}"
 					]
-				}
+				},
+				"description": "# Delete a Media\n\nDelete a Particular media\n\n### Required Headers\n\n- `x-client-id`: {{x-client-id}}\n    \n- `x-client-secret`: {{x-client-secret}}\n    \n\n### Variables\n\n- `authenta`: Base URL for the Authenta API\n    \n- `x-client-id`: Client ID for authentication\n    \n- `x-client-secret`: Client secret for authentication\n    \n\n### Endpoint\n\n```\nDELETE {{authenta}}/api/media/{{mid}}\n\n ```\n\n### Example Usage\n\n``` http\nDELETE {{authenta}}/api/media/693134f59e540dd23c88a8cf\nx-client-id: {{x-client-id}}\nx-client-secret: {{x-client-secret}}\n\n ```\n\n### Response\n\n- **204 No Content**: Media deleted successfully\n    \n- **401 Unauthorized**: Invalid or missing credentials\n    \n- **404 Not Found**: Media not found"
 			},
 			"response": []
 		}
@@ -162,20 +165,6 @@
 					""
 				]
 			}
-		}
-	],
-	"variable": [
-		{
-			"key": "authenta",
-			"value": ""
-		},
-		{
-			"key": "x-client-id",
-			"value": ""
-		},
-		{
-			"key": "x-client-secret",
-			"value": ""
 		}
 	]
 }
