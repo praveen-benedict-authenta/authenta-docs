@@ -6,6 +6,8 @@ title: Python SDK
 
 Welcome to the official documentation for the Authenta Python SDK. This library allows you to integrate state-of-the-art deepfake and manipulated media detection into your Python applications.
 
+**GitHub Repository:** [https://github.com/phospheneai/authenta-python-sdk](https://github.com/phospheneai/authenta-python-sdk)
+
 ## 1. Getting Started
 
 ### Installation
@@ -33,7 +35,7 @@ To use the SDK, you must initialize the `AuthentaClient` with your API credentia
 from authenta import AuthentaClient
 
 client = AuthentaClient(
-    base_url="https://platform.authenta.ai/api",
+    base_url="https://platform.authenta.ai",
     client_id="YOUR_CLIENT_ID",
     client_secret="YOUR_CLIENT_SECRET",
 )
@@ -47,6 +49,7 @@ Authenta provides specialized models for different media types. You select the m
 |------------|----------|------------|
 | AC-1       | Image    | AI-Generated Image Detection: Identifies images created by Generative AI (e.g., Midjourney, Stable Diffusion) or manipulated via editing tools. |
 | DF-1       | Video    | Deepfake Video Detection: Detects face swaps, reenactments, and other facial manipulations in video content. |
+| FD-1       | Image    | Detects forged or tampered regions within an image. |
 
 ## 3. Workflows
 
