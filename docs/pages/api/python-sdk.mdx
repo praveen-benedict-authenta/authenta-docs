@@ -1,0 +1,115 @@
+---
+title: Python SDK
+---
+
+# Authenta Python SDK Documentation
+
+Welcome to the official documentation for the Authenta Python SDK. This library allows you to integrate state-of-the-art deepfake and manipulated media detection into your Python applications.
+
+**GitHub Repository:** [https://github.com/phospheneai/authenta-python-sdk](https://github.com/phospheneai/authenta-python-sdk)
+
+## 1. Getting Started
+
+### Installation
+You can install the SDK via pip for production use or install from source for local development.
+
+**Option A: Install from PyPI (Recommended)**
+
+```bash
+pip install authenta
+```
+
+**Option B: Local Development**
+If you want to modify the SDK source code:
+
+```bash
+git clone https://github.com/phospheneai/authenta-python-sdk.git
+cd authenta-python-sdk
+pip install -e .
+```
+
+### Authentication & Initialization
+To use the SDK, you must initialize the `AuthentaClient` with your API credentials:
+
+```python
+from authenta import AuthentaClient
+
+client = AuthentaClient(
+    base_url="https://platform.authenta.ai",
+    client_id="YOUR_CLIENT_ID",
+    client_secret="YOUR_CLIENT_SECRET",
+)
+```
+
+## 2. Models & Capabilities
+
+Authenta provides specialized models for different media types. You select the model using the `model_type` parameter in SDK methods.
+
+| Model Type | Modality | Capability |
+|------------|----------|------------|
+| AC-1       | Image    | AI-Generated Image Detection: Identifies images created by Generative AI (e.g., Midjourney, Stable Diffusion) or manipulated via editing tools. |
+| DF-1       | Video    | Deepfake Video Detection: Detects face swaps, reenactments, and other facial manipulations in video content. |
+| FD-1       | Image    | Detects forged or tampered regions within an image. |
+
+## 3. Workflows
+
+### Quick Detection (Synchronous)
+Use the `.process()` method to handle uploading and waiting for results in a single blocking call. This is ideal for scripts or simple integrations.
+
+```python
+# Example: Detect AI-generated image
+media = client.process("samples/nano_img.png", model_type="AC-1")
+
+print(f"Media ID: {media['mid']}")
+print(f"Status: {media['status']}")
+print(f"Is Fake?: {media.get('fake')}")
+```
+
+### Async Upload & Polling
+For non-blocking workflows (e.g., web servers), use a two-step process: upload first, then poll for status using the Media ID (`mid`).
+
+```python
+# 1. Initiate Upload
+upload_meta = client.upload_file("samples/video.mp4", model_type="DF-1")
+mid = upload_meta["mid"]
+print(f"Upload started. Media ID: {mid}")
+
+# ... perform other tasks ...
+
+# 2. Check Status Later
+final_media = client.wait_for_media(mid)
+if final_media["status"] == "PROCESSED":
+    print(f"Result: {final_media.get('fake')}")
+```
+
+## 4. API Reference
+
+### Class: `AuthentaClient`
+
+- `__init__(base_url, client_id, client_secret)`
+  Initializes the client session.
+
+- `process(path: str, model_type: str, interval: float = 5.0, timeout: float = 600.0) -> Dict`
+  A high-level wrapper that combines upload and polling.
+  - Returns: A dictionary containing the final processed media state.
+  - Raises: TimeoutError if processing exceeds timeout.
+
+- `upload_file(path: str, model_type: str) -> Dict`
+  Uploads a file to the Authenta platform.
+  - `path`: Local path to the image or video file.
+  - `model_type`: AC-1 (Image) or DF-1 (Video).
+  - Returns: Dictionary with initial metadata (including mid).
+
+- `wait_for_media(mid: str, interval: float = 5.0, timeout: float = 600.0) -> Dict`
+  Blocks execution until the media status becomes PROCESSED or FAILED.
+  - `mid`: The Media ID returned from upload_file.
+
+- `get_media(mid: str) -> Dict`
+  Retrieves the current status and details of a specific media record.
+
+- `list_media(**params) -> Dict`
+  Lists historical media records.
+  - `params`: Query parameters like page, pageSize.
+
+- `delete_media(mid: str) -> None`
+  Permanently removes a media record and its associated data from the platform.
