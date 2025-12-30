@@ -78,7 +78,7 @@ export default defineConfig({
         items: [
           { text: 'Managing API Keys', link: '/api/managing-api-keys' },
           { text: 'Making Requests', link: '/api/making-api-calls' },
-          { text: 'Python SDK', link: '/api/python-sdk' },
+          { text: 'Python SDK', link: 'https://github.com/phospheneai/authenta-python-sdk/blob/main/README.md' },
           // { text: 'Errors & Troubleshooting', link: '/api/errors' },
           // { text: 'Postman Collection', link: '/api/postman-collection' },
         ],
