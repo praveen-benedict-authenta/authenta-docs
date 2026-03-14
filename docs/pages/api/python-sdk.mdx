@@ -1,0 +1,44 @@
+---
+title: Python SDK
+---
+
+# Authenta Python SDK Documentation
+
+Welcome to the official documentation for the Authenta Python SDK. This library allows you to integrate state-of-the-art deepfake and manipulated media detection into your Python applications.
+
+**GitHub Repository:** [https://github.com/phospheneai/authenta-python-sdk](https://github.com/phospheneai/authenta-python-sdk)
+
+## 1. Getting Started
+
+### Installation
+You can install the SDK via pip for production use or install from source for local development.
+
+**Option A: Install from PyPI (Recommended)**
+
+```bash
+pip install authenta
+```
+
+**Option B: Local Development**
+If you want to modify the SDK source code:
+
+```bash
+git clone https://github.com/phospheneai/authenta-python-sdk.git
+cd authenta-python-sdk
+pip install -e .
+```
+
+### Authentication & Initialization
+To use the SDK, you must initialize the `AuthentaClient` with your API credentials:
+
+```python
+from authenta import AuthentaClient
+
+client = AuthentaClient(
+    base_url="https://platform.authenta.ai",
+    client_id="YOUR_CLIENT_ID",
+    client_secret="YOUR_CLIENT_SECRET",
+)
+```
+
+**More:** For detailed models, workflows, examples, and the full API reference, see the SDK README on GitHub: [Python SDK (Github)](https://github.com/phospheneai/authenta-python-sdk?tab=readme-ov-file#2-models--capabilities)
