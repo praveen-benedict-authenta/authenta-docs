@@ -46,7 +46,7 @@ export default defineConfig({
         ],
       },
       {
-        text: 'Using Authenta',
+        text: 'Integrations',
         collapsed: false,
         items: [{ text: 'Using Authenta', link: '/on-prem/using-authenta' }],
       },
