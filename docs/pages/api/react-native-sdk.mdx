@@ -1,0 +1,80 @@
+---
+title: React Native SDK
+---
+
+# Authenta React Native SDK Documentation
+
+Welcome to the official documentation for the Authenta React Native SDK. This library allows you to integrate state-of-the-art deepfake and manipulated media detection into your React Native applications.
+
+**GitHub Repository:** [https://github.com/phospheneai/authenta-reactnative-sdk](https://github.com/phospheneai/authenta-reactnative-sdk)
+
+## 1. Getting Started
+
+### Installation
+
+```bash
+npm install @authenta/react-native-sdk
+```
+
+Then install the required peer dependencies:
+
+```bash
+npm install react-native-vision-camera react-native-image-picker
+```
+
+### Authentication & Initialization
+
+To use the SDK, create an `AuthentaClient` with your API credentials:
+
+```typescript
+import { AuthentaClient } from '@authenta/react-native-sdk';
+
+const client = new AuthentaClient({
+  clientId:     'YOUR_CLIENT_ID',
+  clientSecret: 'YOUR_CLIENT_SECRET',
+  baseUrl:      'https://platform.authenta.ai', // optional — default shown
+});
+```
+
+### Quick Start
+
+Use the built-in `AuthentaCapture` modal to handle camera capture, upload, and result polling with minimal setup:
+
+```typescript
+import React, { useState } from 'react';
+import { Button } from 'react-native';
+import { AuthentaClient, AuthentaCapture } from '@authenta/react-native-sdk';
+import type { ProcessedMedia } from '@authenta/react-native-sdk';
+
+const client = new AuthentaClient({
+  clientId: 'YOUR_CLIENT_ID',
+  clientSecret: 'YOUR_CLIENT_SECRET',
+});
+
+export default function App() {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <>
+      <Button title="Start Verification" onPress={() => setVisible(true)} />
+
+      <AuthentaCapture
+        client={client}
+        visible={visible}
+        onClose={() => setVisible(false)}
+        onResult={(result) => {
+          setVisible(false);
+          console.log(result);
+        }}
+        onError={(err) => {
+          setVisible(false);
+          console.error(err);
+        }}
+        livenessCheck={true}
+      />
+    </>
+  );
+}
+```
+
+**More:** For detailed Android/iOS setup, available models, all props, advanced headless usage, error handling, and the full API reference, see the SDK README on GitHub: [React Native SDK (GitHub)](https://github.com/phospheneai/authenta-reactnative-sdk#readme)
