@@ -4,6 +4,15 @@ The Media API allows you to create media records, upload media files via a pre-s
 
 This page documents all available Media API endpoints, including request/response schemas, examples, and error codes.
 
+# Supported Models
+
+| Model ID       | Media        | Description                             |
+| -------------- | ------       | --------------------------------------- |
+| `DF-1`         | Video        | Video faceswap detection                |
+| `AC-1`         | Image        | AI-generated image detection            |
+| `FD-1`         | Image        | Image forgery detection                 |
+| `FI-1`         | Image/video  | face intelligence pipeline              |
+
 # Overview
 
 The Media API supports the following operations:
@@ -48,7 +57,7 @@ interface CreateMediaRequest {
   name: string;
   contentType: string; // e.g. "video/mp4"
   size: number; // file size in bytes
-  modelType: 'DF-1' | 'AC-1' | 'FD-1'; // e.g. "DF-1"
+  modelType: 'DF-1' | 'AC-1' | 'FD-1' | 'FI-1'; // e.g. "DF-1"
 }
 ```
 
@@ -75,7 +84,7 @@ interface CreateMediaResponse {
   name: string;
   type: 'Video' | 'Image';
   status: 'INITED' | 'UPLOADED' | 'PROCESSED';
-  modelType: 'DF-1' | 'AC-1' | 'FD-1';
+  modelType: 'DF-1' | 'AC-1' | 'FD-1' | 'FI-1';
   createdAt: string;
   uploadUrl: string;
 }
@@ -135,7 +144,7 @@ interface MediaResponse {
   name: string;
   type: 'Video' | 'Image';
   status: 'INITED' | 'UPLOADED' | 'PROCESSED';
-  modelType: 'DF-1' | 'AC-1' | 'FD-1';
+  modelType: 'DF-1' | 'AC-1' | 'FD-1' | 'FI-1';
   createdAt: string;
   srcURL?: string;
 
@@ -209,7 +218,7 @@ interface MediaDetailsResponse {
   name: string;
   type: 'Video' | 'Image';
   status: 'INITED' | 'UPLOADED' | 'PROCESSED';
-  modelType: 'DF-1' | 'AC-1' | 'FD-1';
+  modelType: 'DF-1' | 'AC-1' | 'FD-1' | 'FI-1';
   createdAt: string;
 
   srcURL?: string;
@@ -351,7 +360,7 @@ interface MediaResponse {
   name: string;
   type: 'Video' | 'Image';
   status: 'INITED' | 'UPLOADED' | 'PROCESSED';
-  modelType: 'DF-1' | 'AC-1' | 'FD-1';
+  modelType: 'DF-1' | 'AC-1' | 'FD-1' | 'FI-1';
   createdAt: string;
   srcURL?: string;
 }
