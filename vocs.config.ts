@@ -80,6 +80,7 @@ export default defineConfig({
           { text: 'Making Requests', link: '/api/making-api-calls' },
           { text: 'Python SDK', link: '/api/python-sdk' },
           { text: '.NET SDK', link: '/api/dotnet-sdk' },
+          { text: 'React Native SDK', link: '/api/react-native-sdk' },
           // { text: 'Errors & Troubleshooting', link: '/api/errors' },
           // { text: 'Postman Collection', link: '/api/postman-collection' },
         ],
