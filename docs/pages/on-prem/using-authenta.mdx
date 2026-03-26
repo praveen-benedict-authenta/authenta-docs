@@ -15,7 +15,7 @@ import * as amqp from 'amqplib';
 
 const RABBITMQ_URL = 'amqp://user:pass@rabbitmq:5672/';
 
-async function sendDetectionTask(inputPath, outputType = 'result') {
+async function sendDetectionTask(inputPath, model = 'ac-1') {
   // Connect to RabbitMQ
   const conn = await amqp.connect(RABBITMQ_URL);
   const ch = await conn.createChannel();
@@ -51,43 +51,22 @@ async function sendDetectionTask(inputPath, outputType = 'result') {
     },
   };
 
-  // Add heatmap output if requested
-  if (outputType === 'result + heatmaps') {
-    const heatmapOutput = {
-      kind: 'heatmaps',
-      mimeType: jobMsg.op.name === 'df-1' ? 'video/mp4' : 'image/png',
-      provider: 'local_dir',
-      path: '/opt/authenta/data/heatmaps-results',
-      filename: jobMsg.op.name === 'df-1' ? 'video-heatmap-{faceid}{ext}' : 'processed-image{ext}',
-    };
-    jobMsg.outputs.push(heatmapOutput);
-  }
-
-  // Send the task
-  ch.sendToQueue('task_queue', Buffer.from(JSON.stringify(jobMsg)), { persistent: true });
-
   return jobMsg.id;
 }
 ```
 
 ### 2. Demo Application API
 
-Use our Node.js demo application:
+Authenta includes a demo web application bundled inside the Docker deployment.
+Once your containers are running, the demo interface is available at:
 
-```bash
-# Start the demo app
-cd demo-app
-npm install
-npm run dev
+👉 **[http://localhost:3000](http://localhost:3000)**
 
-# Send a detection request
-curl -X POST http://localhost:3000/detect \
-  -H "Content-Type: application/json" \
-  -d '{
-    "image_path": "/path/to/image.jpg",
-    "detection_type": "deepfake"
-  }'
-```
+The demo application allows you to:
+
+- Upload test media
+- Publish detection tasks to RabbitMQ
+- View inference results returned by Authenta
 
 ### 3. Direct File Processing
 
@@ -122,13 +101,6 @@ For video input files:
       "mimeType": "application/json",
       "provider": "local_dir",
       "path": "/opt/authenta/data/result.json"
-    },
-    {
-      "kind": "heatmaps",
-      "mimeType": "video/mp4",
-      "provider": "local_dir",
-      "path": "/opt/authenta/data/heatmaps-results",
-      "filename": "video-heatmap-{faceid}{ext}"
     }
   ],
   "callback": {
@@ -177,6 +149,38 @@ For image input files:
 }
 ```
 
+### Video Forgery Detection (VF-1)
+
+For video input files:
+
+```json
+{
+  "id": "job-9012",
+  "version": 1,
+  "op": {
+    "name": "vf-1",
+    "version": "1.0.0"
+  },
+  "input": {
+    "mimeType": "application/octet-stream",
+    "provider": "local_dir",
+    "path": "/opt/authenta/data/video.mp4",
+  },
+  "outputs": [
+    {
+      "kind": "result",
+      "mimeType": "application/json",
+      "provider": "local_dir",
+      "path": "/opt/authenta/data/result.json",
+    },
+  ],
+  "callback": {
+    "mode": "rabbitmq",
+    "replyTo": "task_response",
+  },
+}
+```
+
 ## Processing Options
 
 | Option      | Description                                    | Type                  |
@@ -184,31 +188,6 @@ For image input files:
 | `heatmaps`  | Generate visual heatmaps for detection regions | Optional output       |
 | `local_dir` | Process files from shared directory            | Default provider      |
 | `rabbitmq`  | Use RabbitMQ for task responses                | Default callback mode |
-
-## Result Format
-
-```json
-{
-  "task_id": "task_123",
-  "status": "completed",
-  "results": {
-    "detection_score": 0.95,
-    "detection_label": "deepfake",
-    "confidence_level": "high",
-    "analysis_details": {
-      "artifacts_detected": true,
-      "manipulation_type": "face_swap",
-      "affected_regions": [...]
-    },
-    "processing_time": 1.23,
-    "model_version": "2.1.0"
-  },
-  "output_files": {
-    "visualization": "/opt/authenta/data/results/task_123/viz.png",
-    "detailed_report": "/opt/authenta/data/results/task_123/report.json"
-  }
-}
-```
 
 ## Best Practices
 
@@ -341,7 +320,7 @@ try {
 
 ### Error Handling
 
-The system implements automatic reconnection with exponential backoff:
+The system implements automatic reconnection with exponential backoff:+
 ```javascript
 async function runWithReconnect() {
     while (true) {

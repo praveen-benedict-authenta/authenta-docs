@@ -31,21 +31,22 @@ docker compose --profile cpu up -d
 The core configuration is defined using YAML anchors for reusability:
 
 ```yaml
+x-env: &env
+  LOG_FORMAT: json
+  RABBITMQ_URL: amqp://user:pass@rabbitmq:5672/
+  INFRA_TYPE: on-prem
+  LOG_LEVEL: INFO
+  JOBS_ROOT: /app/jobs
+  RABBITMQ_QUEUE: task_queue
+  RUN_MODE: production
+
 x-ml-task-runner-configs: &ml-task-runner-configs
   depends_on:
     rabbitmq:
       condition: service_healthy
-  environment:
-    LOG_FORMAT: json
-    RABBITMQ_URL: amqp://user:pass@rabbitmq:5672/
-    INFRA_TYPE: on-prem
-    LOG_LEVEL: INFO
-    JOBS_ROOT: /app/jobs
-    RABBITMQ_QUEUE: task_queue
-    RUN_MODE: production
   volumes:
-    - /opt/authenta/data:/opt/authenta/data
-```
+    - ./shared:/app/shared
+    - ./demo-app/data:/app/data
 
 ## 3. Service Configuration
 

@@ -124,24 +124,16 @@ Once these are active, Authenta On-Prem is deployed and ready to process inferen
 
 ### 6. (Optional) Test with the Demo Web Application
 
-Authenta includes a sample Node.js application for testing and verification.
-This demo helps you verify that message publishing and inference results are functioning correctly.
+Authenta includes a demo web application that is bundled inside the Docker deployment.
+This application can be used to verify that:
 
-To run the demo:
+- RabbitMQ messaging is functioning
 
-```bash
-# Move into the demo web app directory
-cd demo-webapp
+- The ML task runner is processing jobs correctly
 
-# Install dependencies
-npm install
+-  Results are returned through the pipeline
 
-# Start the demo app
-node index.js
-```
-
-The demo web app runs by default on **port 3000**.
-Open your browser and visit:
+Once the containers are running, the demo web interface will be available at:
 👉 **[http://localhost:3000](http://localhost:3000)**
 
 You can use the web interface to submit sample media and verify that RabbitMQ and the ML task runner are communicating properly.

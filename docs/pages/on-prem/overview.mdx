@@ -27,8 +27,8 @@ It integrates easily with your internal applications through **RabbitMQ** or a l
 | Model    | Input Type | Description                                             | Status |
 | -------- | ---------- | ------------------------------------------------------- | ------ |
 | **DF-1** | Video      | Detects deepfake or manipulated faces in video content. | Stable |
-| **AC-1** | Image      | Determines if an image was AI-generated or synthetic.   | Stable |
-| **FD-1** | Image      | Detects forged or tampered regions within an image.     | Beta   |
+| **AC-1** | Image      | Determines if an image was AI-generated or authentic.   | Stable |
+| **VF-1** | Image      | Detects if an video was AI-generated or authentic       | Beta   |
 
 Each model can be selected dynamically when publishing a task to RabbitMQ.  
 All inference operations occur locally within your environment — no cloud calls or external processing are involved.
