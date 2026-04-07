@@ -1,7 +1,7 @@
 # Authentication
 
-Authenta’s API uses a secure, header-based authentication mechanism.  
-Every request must include your **Client ID** and **Client Secret**, which are generated after your API access request is approved.
+Authenta's API uses a bearer token authentication mechanism.  
+Every request must include your **API Key** in the `Authorization` header.
 
 This page explains how to authenticate with the API and how authentication-related errors are returned.
 
@@ -9,18 +9,16 @@ This page explains how to authenticate with the API and how authentication-relat
 
 Every API request must include:
 
-- **x-client-id** – identifies you
-- **x-client-secret** – verifies the request is from you
+- **Authorization header** – Bearer token format with your API key
 
-These credentials belong to **your user account**, and each API key comes with its own permissions and quotas.
+Your API key is generated when you create an API key in your console and acts as your authentication credential.
 
-## Required Authentication Headers
+## Required Authentication Header
 
-All API requests must include the following headers:
+All API requests must include the following header:
 
 ```http
-x-client-id: <your_client_id>
-x-client-secret: <your_client_secret>
+Authorization: Bearer api_apk_xxxxxxxx...
 ```
 
 Example request:
@@ -28,16 +26,14 @@ Example request:
 ```http
 GET /api/media HTTP/1.1
 Host: platform.authenta.ai
-x-client-id: 123abc456xyz
-x-client-secret: my-secret
+Authorization: Bearer api_apk_xxxxxxxx...
 ```
 
 ## Example in cURL
 
 ```bash
 curl -X GET "https://platform.authenta.ai/api/media" \
-  -H "x-client-id: YOUR_CLIENT_ID" \
-  -H "x-client-secret: YOUR_CLIENT_SECRET"
+  -H "Authorization: Bearer api_apk_xxxxxxxx..."
 ```
 
 ## Example in JavaScript (Node.js)
@@ -45,13 +41,12 @@ curl -X GET "https://platform.authenta.ai/api/media" \
 ```js
 const res = await fetch('https://platform.authenta.ai/api/media', {
   headers: {
-    'x-client-id': process.env.AUTHENTA_CLIENT_ID,
-    'x-client-secret': process.env.AUTHENTA_CLIENT_SECRET,
+    'Authorization': `Bearer ${process.env.AUTHENTA_API_KEY}`,
   },
 });
 
 const body = await res.json();
-platform.log(body);
+console.log(body);
 ```
 
 ## Example in Python
@@ -60,8 +55,7 @@ platform.log(body);
 import requests
 
 headers = {
-    "x-client-id": "YOUR_CLIENT_ID",
-    "x-client-secret": "YOUR_CLIENT_SECRET"
+    "Authorization": f"Bearer {API_KEY}"
 }
 
 response = requests.get("https://platform.authenta.ai/api/media", headers=headers)
@@ -73,74 +67,69 @@ print(response.json())
 Authenta uses a structured error format containing:
 
 - **code** — unique error identifier
-- **type** — error classification
+- **statusCode** — HTTP status code
 - **message** — human-readable explanation
-
-These are defined in your TypeScript layer using the `ErrorCode` class.
 
 Below are the authentication-related error codes your API may return.
 
-## ❌ IAM001 — Invalid Client ID / Secret
+## ❌ INVALID_API_KEY — Invalid or Missing API Key
 
-Returned when the client ID or client secret is missing, invalid, revoked, or does not match.
+Returned when the API key is missing, invalid, revoked, or malformed.
 
-| Field       | Value                       |
-| ----------- | --------------------------- |
-| **code**    | `IAM001`                    |
-| **type**    | `UNAUTHENTICATED`           |
-| **message** | `You are not authenticated` |
-| **status**  | `401`                       |
+| Field            | Value                          |
+| ---------------- | ------------------------------ |
+| **code**         | `INVALID_API_KEY`              |
+| **statusCode**   | `401`                          |
+| **message**      | `API key authentication failed` |
 
 ### Example Response
 
 ```json
 {
-  "code": "IAM001",
-  "type": "UNAUTHENTICATED",
-  "message": "You are not authenticated"
+  "code": "INVALID_API_KEY",
+  "statusCode": 401,
+  "message": "API key authentication failed"
 }
 ```
 
-## ❌ IAM002 — Missing Required Permissions
+## ❌ FORBIDDEN — Missing Required Permissions
 
 Returned when the key is valid but does not have the required permission
 (e.g., a key with only READ permission attempts a DELETE or POST).
 
-| Field       | Value                    |
-| ----------- | ------------------------ |
-| **code**    | `IAM002`                 |
-| **type**    | `UNAUTHORIZED`           |
-| **message** | `You are not authorized` |
-| **status**  | `403`                    |
+| Field            | Value                                 |
+| ---------------- | ------------------------------------- |
+| **code**         | `FORBIDDEN`                           |
+| **statusCode**   | `403`                                 |
+| **message**      | `You don't have permission to access this` |
 
 ### Example Response
 
 ```json
 {
-  "code": "IAM002",
-  "type": "UNAUTHORIZED",
-  "message": "You are not authorized"
+  "code": "FORBIDDEN",
+  "statusCode": 403,
+  "message": "You don't have permission to access this"
 }
 ```
 
-## ❌ AA001 — Quota Limit Reached
+## ❌ INSUFFICIENT_BALANCE — Insufficient Credit Balance
 
-Returned when your **Query** or **Mutation** quota has been exhausted.
+Returned when your account does not have enough credits to perform the requested operation.
 
-| Field       | Value               |
-| ----------- | ------------------- |
-| **code**    | `AA001`             |
-| **type**    | `CLIENT_ERROR`      |
-| **message** | `API limit reached` |
-| **status**  | `429`               |
+| Field            | Value                                                      |
+| ---------------- | ---------------------------------------------------------- |
+| **code**         | `INSUFFICIENT_BALANCE`                                     |
+| **statusCode**   | `402`                                                      |
+| **message**      | `Insufficient balance. Please top up or enable pay-as-you-go billing` |
 
 ### Example Response
 
 ```json
 {
-  "code": "AA001",
-  "type": "CLIENT_ERROR",
-  "message": "API limit reached"
+  "code": "INSUFFICIENT_BALANCE",
+  "statusCode": 402,
+  "message": "Insufficient balance. Please top up or enable pay-as-you-go billing"
 }
 ```
 
@@ -148,31 +137,31 @@ Returned when your **Query** or **Mutation** quota has been exhausted.
 
 When the API receives a request, it performs the following checks in order:
 
-1. **Validate Client ID**
-2. **Validate Client Secret**
+1. **Validate Authorization header**
+2. **Validate API key format**
 3. **Check permissions (Read / Write / Delete)**
-4. **Check Query/Mutation quotas**
-5. **Check credit balance (for media processing)**
+4. **Check credit balance (for media processing)**
 
 Depending on which check fails, the appropriate error code is returned.
 
 # Best Practices for Authentication
 
-### 🔒 1. Keep your Client Secret private
+### 🔒 1. Keep your API Key private
 
 Store it using environment variables or secret managers.
+Never hard-code it into your source code.
 
 ### 🔑 2. Use separate keys for separate environments
 
 Production, staging, CI, automation, etc.
 
-### 🔄 3. Rotate secrets periodically
+### 🔄 3. Rotate keys periodically
 
-You can regenerate your secret anytime.
+You can regenerate your API key anytime for enhanced security.
 
-### 📉 4. Monitor quota usage
+### 📉 4. Monitor usage & credit balance
 
-Your key will return `AA001` once quotas are exhausted.
+Track your credit usage to avoid running out of credits mid-operation.
 
 # Next Steps
 

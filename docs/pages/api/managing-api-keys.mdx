@@ -4,33 +4,31 @@ API keys are credentials that identify and authorize you when making requests to
 
 Each key contains:
 
-- **Client ID** → Acts as the public identifier
-- **Client Secret** → A private secret used to authenticate
-- **Assigned permissions**
-- **Allocated Query quota**
-- **Allocated Mutation quota**
+- **API Key** → A unique token used to authenticate requests
+- **Assigned permissions** → Which operations the key can perform
+- **Creation date** → When the key was created
 
-> ⚠️ The **client secret is shown only once** when the key is created.  
+> ⚠️ The **API key is shown only once** when created.  
 > You must store it securely — Authenta does _not_ display it again.
 
 ## Where to Manage API Keys
 
 Navigate to:
 
-**Settings → API Access → API Keys**
+**Settings → API Keys**
 
 Here you will see:
 
 - A list of your existing keys
-- Their assigned permissions
-- Usage of quota per key
+- Their permissions
+- Usage per key
 - Options to create or revoke keys
 
-If you have no keys yet, you will see a **Generate API Key** button.
+If you have no keys yet, you will see a **Create API Key** button.
 
 ## Creating a New API Key
 
-Click **Generate API Key** to open the creation dialog.  
+Click **Create API Key** to open the creation dialog.  
 You will be prompted to configure:
 
 ### 1. Key Name
@@ -57,34 +55,7 @@ Permissions restrict which API operations a key may perform.
 If a key does not have the required permission, requests will return:
 
 ```
-
 403 — Forbidden (You are not authorized)
-
-```
-
-### 3. Quota Allocation (Per Key)
-
-Since quotas are assigned **per-user**, each API key can use only a portion of your total:
-
-- **Query quota**
-- **Mutation quota**
-
-You can choose how much of your available quota to allocate to a specific key.
-
-Examples:
-
-| Total User Quota       | Key Allocation Example |
-| ---------------------- | ---------------------- |
-| 60 Query / 40 Mutation | Key A → 20Q / 10M      |
-|                        | Key B → 40Q / 30M      |
-
-Once allocated, the key cannot exceed its assigned quota.  
-If it does, the API returns:
-
-```
-
-429 — Quota Exceeded
-
 ```
 
 ## Viewing API Keys
@@ -92,35 +63,32 @@ If it does, the API returns:
 After a key is created, you will see:
 
 - Key name
-- Client ID
 - Permissions
-- Query quota usage
-- Mutation quota usage
 - Date created
 - Options to manage the key
 
-### Viewing the Client Secret
+### Viewing the API Key
 
-After creation, the **client secret is not shown again**.  
-If you lose the secret:
+After creation, the **API key is not shown again**.  
+If you lose the key:
 
 - You must **regenerate** it
-- The previous secret becomes invalid immediately
+- The previous key becomes invalid immediately
 
-## Regenerating the Client Secret
+## Regenerating the API Key
 
-If your secret has been lost or compromised:
+If your key has been lost or compromised:
 
 1. Open the key details
-2. Click **Regenerate Secret**
-3. Copy the new secret immediately
-4. Update your services to use the new secret
+2. Click **Regenerate**
+3. Copy the new key immediately
+4. Update your services to use the new key
 
-A regenerated secret:
+A regenerated key:
 
-- Invalidates the old secret
-- Does **not** change your Client ID
-- Does **not** reset key-level quotas
+- Invalidates the old key
+- Does **not** change your Key Name
+- Does **not** reset key-level permissions
 - Does **not** affect your usage history
 
 ## Revoking an API Key
@@ -133,10 +101,10 @@ If a key is no longer needed:
 
 Revoking a key:
 
-- Immediately invalidates both Client ID & Client Secret
+- Immediately invalidates both API Key
 - Prevents all further requests using that key
 - Does not delete historical usage or logs
-- Frees previously allocated quota back to your user account (optional depending on UI behavior)
+- Frees the key from active use (optional depending on UI behavior)
 
 You may revoke a key at any time for security or cleanup purposes.
 

@@ -80,9 +80,10 @@ dotnet add package Authenta.SDK
 var client = new AuthentaClient(new AuthentaOptions
 {
     BaseUrl = "<AUTHENTA_BASE_URL>",
-    ClientId = "<CLIENT_ID>",
-    ClientSecret = "<CLIENT_SECRET>"
+    apk = "api_apk_xxxxxxxx..."
 });
 ```
+
+Your API key can be created and managed in **Settings → API Keys**.
 
 **More:** For details on models, capabilities, and examples, see the SDK README on GitHub: [.NET SDK (Github)](https://github.com/phospheneai/authenta-dotnet-sdk?tab=readme-ov-file#2-models--capabilities)

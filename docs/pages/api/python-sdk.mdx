@@ -29,16 +29,17 @@ pip install -e .
 ```
 
 ### Authentication & Initialization
-To use the SDK, you must initialize the `AuthentaClient` with your API credentials:
+To use the SDK, you must initialize the `AuthentaClient` with your API key:
 
 ```python
 from authenta import AuthentaClient
 
 client = AuthentaClient(
     base_url="https://platform.authenta.ai",
-    client_id="YOUR_CLIENT_ID",
-    client_secret="YOUR_CLIENT_SECRET",
+    api_key="api_apk_xxxxxxxx...",
 )
 ```
+
+Your API key can be created and managed in **Settings → API Keys**.
 
 **More:** For detailed models, workflows, examples, and the full API reference, see the SDK README on GitHub: [Python SDK (Github)](https://github.com/phospheneai/authenta-python-sdk?tab=readme-ov-file#2-models--capabilities)

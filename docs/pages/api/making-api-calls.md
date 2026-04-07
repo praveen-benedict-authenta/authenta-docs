@@ -1,9 +1,6 @@
 # Making API Calls
 
-This page explains how to correctly interact with the Authenta API after:
-
-1. Your API access request has been **approved**, and
-2. You have created an **API key** (Client ID + Client Secret).
+This page explains how to correctly interact with the Authenta API after you have created an **API key**.
 
 You’ll learn how to structure requests, authenticate, upload media using the **two-step upload flow**, and handle all API responses.
 
@@ -26,16 +23,21 @@ Your deployment (dev, staging, on-prem) may use a different domain.
 
 # Required Authentication Headers
 
-Every request must include your API key credentials:
+Every request must include your API key in the Authorization header:
 
 ```http
-x-client-id: <your_client_id>
-x-client-secret: <your_client_secret>
+Authorization: Bearer <your_api_key>
 ```
 
-If these are missing or invalid, the API returns:
+Example:
 
-`IAM001 – You are not authenticated`
+```http
+Authorization: Bearer api_apk_xxxxxxxx...
+```
+
+If this header is missing or invalid, the API returns:
+
+`INVALID_API_KEY – API key authentication failed`
 
 # Example: GET Request
 
@@ -43,8 +45,7 @@ If these are missing or invalid, the API returns:
 
 ```bash
 curl -X GET "https://platform.authenta.ai/api/media" \
-  -H "x-client-id: YOUR_CLIENT_ID" \
-  -H "x-client-secret: YOUR_CLIENT_SECRET"
+  -H "Authorization: Bearer api_apk_xxxxxxxx..."
 ```
 
 ### JavaScript (fetch)
@@ -52,11 +53,10 @@ curl -X GET "https://platform.authenta.ai/api/media" \
 ```js
 const res = await fetch('https://platform.authenta.ai/api/media', {
   headers: {
-    'x-client-id': process.env.CLIENT_ID,
-    'x-client-secret': process.env.CLIENT_SECRET,
+    'Authorization': `Bearer ${process.env.API_KEY}`,
   },
 });
-platform.log(await res.json());
+console.log(await res.json());
 ```
 
 ### Python
@@ -67,8 +67,7 @@ import requests
 response = requests.get(
     "https://platform.authenta.ai/api/media",
     headers={
-        "x-client-id": "YOUR_CLIENT_ID",
-        "x-client-secret": "YOUR_CLIENT_SECRET"
+        "Authorization": f"Bearer {os.getenv('API_KEY')}"
     }
 )
 print(response.json())
@@ -104,8 +103,7 @@ This creates a media record in Authenta’s database and returns:
 
 ```bash
 curl -X POST "https://platform.authenta.ai/api/media" \
-  -H "x-client-id: YOUR_CLIENT_ID" \
-  -H "x-client-secret: YOUR_CLIENT_SECRET" \
+  -H "Authorization: Bearer api_apk_xxxxxxxx..." \
   -H "Content-Type: application/json" \
   -d '{
     "name": "video_sample",
@@ -129,8 +127,7 @@ curl -X POST "https://platform.authenta.ai/api/media" \
 }
 ```
 
-> ✔ This is a **Mutation** request — it reduces your Mutation Quota.
-> ✔ No credits are consumed yet.
+> ✔ No credits are consumed yet; processing hasn't started.
 
 ## Step 2 — Upload the File to S3
 
@@ -178,29 +175,25 @@ Possible statuses include:
 
 ```bash
 curl -X GET "https://platform.authenta.ai/api/media/692f406f9f68d4b70080bb80" \
-  -H "x-client-id: YOUR_CLIENT_ID" \
-  -H "x-client-secret: YOUR_CLIENT_SECRET"
+  -H "Authorization: Bearer api_apk_xxxxxxxx..."
 ```
 
-> ✔ This is a **Query** request — it reduces your Query Quota.
 > ✔ This request does not consume credits.
 
 # Deleting Media
 
 ```bash
 curl -X DELETE "https://platform.authenta.ai/api/media/692f406f9f68d4b70080bb80" \
-  -H "x-client-id: YOUR_CLIENT_ID" \
-  -H "x-client-secret: YOUR_CLIENT_SECRET"
+  -H "Authorization: Bearer api_apk_xxxxxxxx..."
 ```
 
 Notes:
 
-- This is a **Mutation** request — it reduces your Mutation Quota.
 - It does **not** consume credits.
 - If your key lacks delete permission:
 
 ```
-IAM002 – You are not authorized
+FORBIDDEN – You don't have permission to access this
 ```
 
 # Response Structure
@@ -243,47 +236,35 @@ Authenta always returns JSON.
 
 # Error Responses
 
-Authenta returns structured error objects based on your TypeScript `ErrorCode` class.
+Authenta returns structured error objects with a code, statusCode, and message.
 
-### ❌ IAM001 — Invalid Client Credentials
+### ❌ INVALID_API_KEY — Invalid or Missing API Key
 
 ```json
 {
-  "code": "IAM001",
-  "type": "UNAUTHENTICATED",
-  "message": "You are not authenticated"
+  "code": "INVALID_API_KEY",
+  "statusCode": 401,
+  "message": "API key authentication failed"
 }
 ```
 
-### ❌ IAM002 — Insufficient Permissions
+### ❌ FORBIDDEN — Insufficient Permissions
 
 ```json
 {
-  "code": "IAM002",
-  "type": "UNAUTHORIZED",
-  "message": "You are not authorized"
+  "code": "FORBIDDEN",
+  "statusCode": 403,
+  "message": "You don't have permission to access this"
 }
 ```
 
-### ❌ AA001 — API Limit Reached (Quota Exceeded)
+### ❌ INSUFFICIENT_BALANCE — Insufficient Credits
 
 ```json
 {
-  "code": "AA001",
-  "type": "CLIENT_ERROR",
-  "message": "API limit reached"
-}
-```
-
-### ❌ U007 — Insufficient Credits
-
-Returned when attempting to process media without enough credits:
-
-```json
-{
-  "code": "U007",
-  "type": "CLIENT_ERROR",
-  "message": "Insufficient credits"
+  "code": "INSUFFICIENT_BALANCE",
+  "statusCode": 402,
+  "message": "Insufficient balance. Please top up or enable pay-as-you-go billing"
 }
 ```
 
@@ -291,9 +272,9 @@ Returned when attempting to process media without enough credits:
 
 ### ⛔ Do NOT retry on:
 
-- `AA001` (quota exhausted)
-- `U007` (insufficient credits)
-- `IAM002` (unauthorized)
+- `INSUFFICIENT_BALANCE` (insufficient credits)
+- `FORBIDDEN` (insufficient permissions)
+- `INVALID_API_KEY` (authentication failed)
 
 ### 🔁 You MAY retry on:
 
@@ -328,14 +309,18 @@ Use one key for:
 
 Use environment variables or a secret manager.
 
+### ✔ Monitor your credit balance
+
+Check your remaining credits regularly via Settings → Billing to avoid interruptions.
+
 # Summary
 
 - Use `POST /media` to create a record
 - Upload the file to the **pre-signed S3 URL**
 - Poll `GET /media/{id}` for status
 - Media processing starts automatically after upload
-- Quotas limit Query & Mutation calls
 - Credits are consumed **only** when processing starts
+- No limits on API calls — make unlimited requests
 - All errors use structured error responses
 
 # Next Steps

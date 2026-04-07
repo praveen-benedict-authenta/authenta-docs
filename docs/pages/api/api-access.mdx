@@ -1,158 +1,122 @@
-# Requesting API Access
+# API Keys & Access
 
-Authenta API access is not enabled by default.  
-Each **user** must explicitly request access from the Authenta Console, specify their expected usage quotas, and wait for approval from the Authenta admin team.
+API keys are your credentials for accessing the Authenta API. You can create and manage API keys directly from your Authenta Console without any approval process.
 
-This page explains the complete workflow for requesting and activating API access for a user.
+This page explains how to create, manage, and use API keys.
 
-## What Is API Access?
+## What Are API Keys?
 
-API access allows a user to:
+API keys allow you to:
 
 - Upload media programmatically
 - Fetch analysis results without using the UI
 - Integrate deepfake detection into their own applications or scripts
 - Manage media lifecycle (create, read, delete) through HTTP endpoints
 
-Once your request is approved, you will be able to create API keys (Client ID & Client Secret) and begin making authenticated API calls.
+Each API key is a token that acts as your authentication credential for making API requests.
 
-## Where to Request API Access
+## Where to Manage API Keys
 
-You can request access directly from the Authenta Console:
+Navigate to the **API Keys** tab in your Authenta Console:
 
-**Settings → API Access**
+**Settings → API Keys**
 
-On this page, you’ll see:
+On this page, you'll see:
 
-- Your user details
-- Your available credits
-- Your current API access status
-- Fields to configure your API quotas
+- A list of your existing API keys
+- Their creation date and usage
+- Options to create, view, or revoke keys
 
-If API access has not been requested yet, you will see a **Request API Access** button.
+## Creating an API Key
 
-## Submitting an API Access Request
+Click the **Create API Key** button to generate a new API key.
 
-When requesting API access, you must provide two quota values:
+When creating a new key, you will configure:
 
-### 1. Mutation Quota
+### 1. Key Name
 
-The number of **write** operations you expect to perform.  
-This covers the following HTTP methods:
-
-- `POST`
-- `PUT`
-- `DELETE`
-
-These are operations that create or modify resources.
+A descriptive label to help you identify the purpose of the key.
 
 Examples:
 
-- Uploading a media file
-- Deleting a media record
+- `Backend-Server-Key`
+- `Mobile-App-Key`
+- `Data-Pipeline-Key`
 
-### 2. Query Quota
+### 2. Permissions
 
-The number of **read-only** operations you expect to perform.  
-This covers:
+Select which operations this key is allowed to perform:
 
-- `GET` requests
+| Permission | Allows                            |
+| ---------- | --------------------------------- |
+| **Read**   | Fetching media and metadata       |
+| **Write**  | Uploading media                   |
+| **Delete** | Removing media records            |
 
-Examples:
+You can select one or multiple permissions based on your integration needs.
 
-- Fetching all media
-- Fetching details of a specific media item
+If a key does not have the required permission, API requests will return:
 
-## Quota Requirements
+```
+403 — Forbidden (You are not authorized)
+```
 
-To keep the system predictable and stable, Authenta enforces the following rule:
+## Generated Credentials
 
-> **Query Quota must be at least 1.5 × Mutation Quota.**
+Once created, your API key generates:
 
-Examples:
+- **API Key** – A token in the format `api_apk_xxxxxxxx...` used to authenticate requests
 
-| Mutation Quota | Minimum Query Quota |
-| -------------- | ------------------- |
-| 20             | 30                  |
-| 40             | 60                  |
-| 100            | 150                 |
+Example:
 
-If the Query Quota does not satisfy this rule, the console will show a validation error and you will need to adjust the values.
+```
+api_apk_xxxxxxxx...
+```
 
-## Request Status
+> ⚠️ **Your API key is shown only once** when created.  
+> Store it securely immediately — Authenta does not display it again.
 
-After you submit the request, your API access will move through these statuses:
+## Managing Your API Keys
 
-### **PENDING**
+### Viewing Keys
 
-- Your request has been submitted
-- Awaiting review by the Authenta admin team
+From the **Settings → API Keys** page, you can see:
 
-### **APPROVED**
+- Key name and creation date
+- Last used date
+- Permissions (Read, Write, Delete)
+- Usage metrics
 
-- You can now generate API keys
-- Your user-level Query and Mutation quotas are active
-- You can start integrating the API
+### Regenerating a Key
 
-### **REJECTED** (rare)
+If you suspect a key has been compromised:
 
-- The provided information was not sufficient or appropriate
-- Credits may be insufficient
-- Other policy or usage concerns
+1. Go to **Settings → API Keys**
+2. Click the **Regenerate** button for the key
+3. A new token will be generated (the old one becomes invalid immediately)
+4. Copy and store the new key securely
 
-If your request is rejected, you can review the reason (if provided) and submit a new request with updated details.
+### Revoking a Key
 
-## What Happens After Approval?
+To disable a key:
 
-When your API access request is approved:
+1. Go to **Settings → API Keys**
+2. Click the **Revoke** button
+3. The key will be deactivated immediately
+4. Any API calls using this key will return `401 – Unauthorized`
 
-1. Your **Query** and **Mutation** quotas are assigned to **your user account**
-2. The API Access page will show your active quotas and usage
-3. A **Generate API Key** (or similar) action becomes available
-4. You can create API credentials:
-   - **Client ID**
-   - **Client Secret** (shown only once)
-5. You can begin making authenticated API calls using your keys
+## API Key Best Practices
 
-Approval gives your **user account** the ability to use the API within the limits of:
-
-- Your **Query quota**
-- Your **Mutation quota**
-- Your available **credits**
-
-Each media upload still consumes credits, just like it does when using the Authenta UI.
-
-## Editing or Increasing Your Quotas
-
-If your usage grows over time, you can request higher limits:
-
-1. Go to **Settings → API Access**
-2. Open your existing API access configuration
-3. Click **Request Increase** (or equivalent action)
-4. Enter new Mutation and Query quota values
-5. Submit for admin approval
-
-Quota increases follow the same rule:
-
-> **Query Quota ≥ 1.5 × Mutation Quota**
-
-Your updated request will again go through the PENDING → APPROVED/REJECTED flow.
-
-## API Access Scope & Limitations
-
-API access is granted **per user**, and currently:
-
-- Quotas are tracked per user account
-- Each user manages their own API keys
-- Usage (queries, mutations, credits) is attributed to the user who owns the keys
+- **Do not commit keys to version control** – Use environment variables or secret managers
+- **Regenerate keys regularly** – Especially if exposed or after staff changes
+- **Use separate keys per environment** – Keep production, staging, and testing keys separate
+- **Assign minimal permissions** – Only grant Read, Write, or Delete as needed
+- **Monitor key usage** – Check the API Keys page regularly for unexpected activity
+- **Rotate keys annually** – Even if not compromised, rotate as a security best practice
 
 ## Next Steps
 
-Once your API access is approved:
-
-- [Generate API Keys](/api/managing-api-keys)
 - [Learn how Authentication works](/api/authentication)
 - [Start making API calls](/api/making-api-calls)
 - [Check endpoint details](/api/reference/media)
-
-Requesting API access is the first step to integrating Authenta’s deepfake detection engine into your own tools and workflows.
+- [Understand Credits & Usage](/api/quotas-and-credits)

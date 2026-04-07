@@ -17,12 +17,12 @@ This page documents all available Media API endpoints, including request/respons
 
 The Media API supports the following operations:
 
-| Endpoint       | Method | Description                             | Request Type |
-| -------------- | ------ | --------------------------------------- | ------------ |
-| `/media`       | POST   | Create media record + get S3 upload URL | Mutation     |
-| `/media`       | GET    | List all media belonging to the user    | Query        |
-| `/media/{mid}` | GET    | Fetch a single media record             | Query        |
-| `/media/{mid}` | DELETE | Delete a media record                   | Mutation     |
+| Endpoint       | Method | Description                             |
+| -------------- | ------ | --------------------------------------- |
+| `/media`       | POST   | Create media record + get S3 upload URL |
+| `/media`       | GET    | List all media belonging to the user    |
+| `/media/{mid}` | GET    | Fetch a single media record             |
+| `/media/{mid}` | DELETE | Delete a media record                   |
 
 Authenta media uploads use a **two-step upload process**:
 
@@ -36,8 +36,7 @@ Processing begins automatically after upload.
 All endpoints require:
 
 ```http
-x-client-id: <your_client_id>
-x-client-secret: <your_client_secret>
+Authorization: Bearer api_apikey_xxxxxxxx...
 ```
 
 See: `/api/authentication`
@@ -47,8 +46,6 @@ See: `/api/authentication`
 ### `POST /media`
 
 Creates a new media record and returns a pre-signed S3 URL to upload the actual file.
-
-This is a **Mutation** request.
 
 ## Request Body
 
@@ -65,8 +62,7 @@ interface CreateMediaRequest {
 
 ```bash
 curl -X POST "https://platform.authenta.ai/api/media" \
-  -H "x-client-id: YOUR_CLIENT_ID" \
-  -H "x-client-secret: YOUR_CLIENT_SECRET" \
+  -H "Authorization: Bearer api_apikey_xxxxxxxx..." \
   -H "Content-Type: application/json" \
   -d '{
     "name": "video_sample",
@@ -117,7 +113,7 @@ curl -X PUT "https://signed-s3-url" \
 Notes:
 
 - Upload must match the `contentType` and `size` provided.
-- Uploading to S3 **does not** count against API quotas.
+- Uploading to S3 **does not** count against API call limits.
 - Processing begins automatically after upload.
 
 # 2. List All Media
@@ -126,14 +122,11 @@ Notes:
 
 Fetches all media records for the authenticated user.
 
-This is a **Query** request.
-
 ## Example
 
 ```bash
 curl -X GET "https://platform.authenta.ai/api/media" \
-  -H "x-client-id: YOUR_CLIENT_ID" \
-  -H "x-client-secret: YOUR_CLIENT_SECRET"
+  -H "Authorization: Bearer api_apikey_xxxxxxxx..."
 ```
 
 ## Response
@@ -194,14 +187,11 @@ interface ListMediaResponse {
 
 Fetches details about a single media item.
 
-This is a **Query** request.
-
 ## Example
 
 ```bash
 curl -X GET "https://platform.authenta.ai/api/media/692f406f9f68d4b70080bb80" \
-  -H "x-client-id: YOUR_CLIENT_ID" \
-  -H "x-client-secret: YOUR_CLIENT_SECRET"
+  -H "Authorization: Bearer api_apikey_xxxxxxxx..."
 ```
 
 ## Response
@@ -265,14 +255,11 @@ interface MediaDetailsResponse {
 
 Deletes a media record belonging to the authenticated user.
 
-This is a **Mutation** request.
-
 ## Example
 
 ```bash
 curl -X DELETE "https://platform.authenta.ai/api/media/692f406f9f68d4b70080bb80" \
-  -H "x-client-id: YOUR_CLIENT_ID" \
-  -H "x-client-secret: YOUR_CLIENT_SECRET"
+  -H "Authorization: Bearer api_apikey_xxxxxxxx..."
 ```
 
 ### Notes
@@ -283,7 +270,7 @@ curl -X DELETE "https://platform.authenta.ai/api/media/692f406f9f68d4b70080bb80"
   If missing:
 
 ```
-IAM002 – You are not authorized
+FORBIDDEN – You don't have permission to access this
 ```
 
 # Media Status Lifecycle
@@ -300,51 +287,39 @@ You may poll `GET /media/{mid}` until status becomes `PROCESSED`.
 
 # Error Codes
 
-### IAM001 — Invalid Credentials
+### INVALID_API_KEY — Invalid or Missing API Key
 
-Returned when the Client ID or Client Secret is missing or incorrect.
+Returned when the API key is missing, invalid, revoked, or malformed.
 
 ```json
 {
-  "code": "IAM001",
-  "type": "UNAUTHENTICATED",
-  "message": "You are not authenticated"
+  "code": "INVALID_API_KEY",
+  "statusCode": 401,
+  "message": "API key authentication failed"
 }
 ```
 
-### IAM002 — Insufficient Permissions
+### FORBIDDEN — Insufficient Permissions
 
 Returned when your API key does not have the required permissions.
 
 ```json
 {
-  "code": "IAM002",
-  "type": "UNAUTHORIZED",
-  "message": "You are not authorized"
+  "code": "FORBIDDEN",
+  "statusCode": 403,
+  "message": "You don't have permission to access this"
 }
 ```
 
-### AA001 — API Limit Reached
-
-Returned when your **Query** or **Mutation** quota is exceeded.
-
-```json
-{
-  "code": "AA001",
-  "type": "CLIENT_ERROR",
-  "message": "API limit reached"
-}
-```
-
-### U007 — Insufficient Credits
+### INSUFFICIENT_BALANCE — Insufficient Credits
 
 Returned when media processing cannot start due to insufficient credits.
 
 ```json
 {
-  "code": "U007",
-  "type": "CLIENT_ERROR",
-  "message": "Insufficient credits"
+  "code": "INSUFFICIENT_BALANCE",
+  "statusCode": 402,
+  "message": "Insufficient balance. Please top up or enable pay-as-you-go billing"
 }
 ```
 
@@ -372,7 +347,7 @@ interface MediaResponse {
 - Upload the actual file directly to S3
 - Poll `GET /media/{mid}` for processing status
 - Use `DELETE /media/{mid}` to remove media
-- Quotas apply to GET/POST/DELETE; credits apply only to processing
+- Credits are consumed only when media processing starts
 - Error codes follow a structured JSON format
 
 # Next Steps
