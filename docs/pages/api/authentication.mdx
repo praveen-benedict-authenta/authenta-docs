@@ -18,28 +18,28 @@ Your API key is generated when you create an API key in your console and acts as
 All API requests must include the following header:
 
 ```http
-Authorization: Bearer api_apk_xxxxxxxx...
+Authorization: Bearer api_xxxxxxxx...
 ```
 
 Example request:
 
 ```http
-GET /api/media HTTP/1.1
+GET /api/v1/jobs HTTP/1.1
 Host: platform.authenta.ai
-Authorization: Bearer api_apk_xxxxxxxx...
+Authorization: Bearer api_xxxxxxxx...
 ```
 
 ## Example in cURL
 
 ```bash
-curl -X GET "https://platform.authenta.ai/api/media" \
-  -H "Authorization: Bearer api_apk_xxxxxxxx..."
+curl -X GET "https://platform.authenta.ai/api/v1/jobs" \
+  -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
 ## Example in JavaScript (Node.js)
 
 ```js
-const res = await fetch('https://platform.authenta.ai/api/media', {
+const res = await fetch('https://platform.authenta.ai/api/v1/jobs', {
   headers: {
     'Authorization': `Bearer ${process.env.AUTHENTA_API_KEY}`,
   },
@@ -58,7 +58,7 @@ headers = {
     "Authorization": f"Bearer {API_KEY}"
 }
 
-response = requests.get("https://platform.authenta.ai/api/media", headers=headers)
+response = requests.get("https://platform.authenta.ai/api/v1/jobs", headers=headers)
 print(response.json())
 ```
 
@@ -169,4 +169,4 @@ Once authentication is set up:
 
 - [Learn how to **use the API**](/api/making-api-calls)
 - [View how **quotas & credits** work](/api/quotas-and-credits)
-- [Explore the **Media API Reference**](/api/reference/media)
+- [Explore the **Jobs API Reference**](/api/reference/jobs)

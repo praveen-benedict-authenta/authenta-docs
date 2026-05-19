@@ -100,12 +100,14 @@ This ensures type-safe usage for integrations built in TypeScript or Node.js.
 
 The current set of public API routes includes:
 
-- **POST `/api/media`** — Upload Media _(Mutation)_
-- **GET `/api/media`** — Fetch All Media _(Query)_
-- **GET `/api/media/{mid}`** — Fetch One Media _(Query)_
-- **DELETE `/api/media/{mid}`** — Delete Media _(Mutation)_
+- **GET `/api/v1/jobs`** — List All Jobs _(Query)_
+- **GET `/api/v1/jobs/{id}`** — Get Job Details _(Query)_
+- **POST `/api/v1/jobs`** — Create Job & Upload Media _(Mutation)_
+- **POST `/api/v1/jobs/{id}/finalize`** — Finalize Job & Queue Processing _(Mutation)_
+- **POST `/api/v1/jobs/{id}/cancel`** — Cancel Job _(Mutation)_
+- **DELETE `/api/v1/jobs/{id}`** — Delete Job _(Mutation)_
 
-Full details are available in [References](/api/reference/media)
+Full details are available in [Jobs API References](/api/reference/jobs)
 
 ## Next Steps
 
