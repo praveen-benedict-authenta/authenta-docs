@@ -32,7 +32,7 @@ Authorization: Bearer <your_api_key>
 Example:
 
 ```http
-Authorization: Bearer api_apk_xxxxxxxx...
+Authorization: Bearer api__xxxxxxxx...
 ```
 
 If this header is missing or invalid, the API returns:
@@ -45,7 +45,7 @@ If this header is missing or invalid, the API returns:
 
 ```bash
 curl -X GET "https://platform.authenta.ai/api/media" \
-  -H "Authorization: Bearer api_apk_xxxxxxxx..."
+  -H "Authorization: Bearer api__xxxxxxxx..."
 ```
 
 ### JavaScript (fetch)
@@ -103,7 +103,7 @@ This creates a media record in Authenta’s database and returns:
 
 ```bash
 curl -X POST "https://platform.authenta.ai/api/media" \
-  -H "Authorization: Bearer api_apk_xxxxxxxx..." \
+  -H "Authorization: Bearer api__xxxxxxxx..." \
   -H "Content-Type: application/json" \
   -d '{
     "name": "video_sample",
@@ -175,7 +175,7 @@ Possible statuses include:
 
 ```bash
 curl -X GET "https://platform.authenta.ai/api/media/692f406f9f68d4b70080bb80" \
-  -H "Authorization: Bearer api_apk_xxxxxxxx..."
+  -H "Authorization: Bearer api__xxxxxxxx..."
 ```
 
 > ✔ This request does not consume credits.
@@ -184,7 +184,7 @@ curl -X GET "https://platform.authenta.ai/api/media/692f406f9f68d4b70080bb80" \
 
 ```bash
 curl -X DELETE "https://platform.authenta.ai/api/media/692f406f9f68d4b70080bb80" \
-  -H "Authorization: Bearer api_apk_xxxxxxxx..."
+  -H "Authorization: Bearer api__xxxxxxxx..."
 ```
 
 Notes:
@@ -327,4 +327,4 @@ Check your remaining credits regularly via Settings → Billing to avoid interru
 
 - [Learn about quotas](/api/quotas-and-credits)
 - [Review authentication](/api/authentication)
-- [Explore API endpoints](/api/reference/media)
+- [Explore API endpoints](/api/reference/jobs)

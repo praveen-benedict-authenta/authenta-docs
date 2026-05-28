@@ -10,8 +10,8 @@ Authenta supports multiple AI detection task types. Each task type processes spe
 
 ## Task Types Reference
 
-| ID  | Slug | Display Name | Description | Input Format | Timeout |
-|-----|------|--------------|-------------|--------------|---------|
+| ID | Slug | Model | Description | Supported Formats | Timeout |
+|---|---|---|---|---|---|
 | `1` | `ai-image-detection` | AI Image Detector | Detects if an image is AI-generated or real | JPEG, PNG | 300s |
 | `2` | `ai-audio-detection` | AI Audio Detector | Detects if audio is AI-generated or real | MP3, WAV, M4A | 600s |
 | `3` | `ai-video-detection` | AI Video Detector | Detects if a video is AI-generated or real | MP4, MOV | 600s |
@@ -19,6 +19,10 @@ Authenta supports multiple AI detection task types. Each task type processes spe
 | `5` | `image-forgery-detection` | Image Forgery Detection | Detects if an image contains forgery or tampered content | JPEG, PNG | 300s |
 | `6` | `document-intelligence` | Document Intelligence | Detects if a document contains forgery or tampered content | JPEG, PNG, PDF | 300s |
 | `7` | `face-liveness-detection` | Face Liveness Detection | Detects if a face in an image is real or spoofed | JPEG, PNG | 600s |
+| `8` | `face-intelligence` | Face Intelligence | Combined face analysis and verification workflow | JPEG, PNG, MP4, WebM, MOV | 600s |
+| `9` | `face-embedding` | Face Embedding | Generates face embedding vectors from images | JPEG, PNG | 600s |
+| `10` | `audio-splitter` | Audio Splitter | Splits audio into foreground and background tracks | MP3, WAV, M4A | 600s |
+| `11` | `ekyc-deepfake` | EKYC Deepfakes | Enhanced deepfake detection model for EKYC workflows | MP4, MOV, WebM | 600s |
 
 # Overview
 

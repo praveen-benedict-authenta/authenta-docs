@@ -138,4 +138,4 @@ Check your API key usage and credit consumption regularly to plan budget and sca
 
 - [Learn how to **authenticate and call the API**](/api/authentication)
 - [See practical request examples](/api/making-api-calls)
-- [Explore the Media API endpoints](/api/reference/media)
+- [Explore the Media API endpoints](/api/reference/jobs)
