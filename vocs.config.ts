@@ -88,7 +88,9 @@ export default defineConfig({
       {
         text: 'API Reference',
         collapsed: false,
-        items: [{ text: 'Media API', link: '/api/reference/media' }],
+        items: [
+          { text: 'Jobs API', link: '/api/reference/jobs' }
+        ],
       },
       {
         text: 'Postman Collection',
