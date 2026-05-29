@@ -2,54 +2,82 @@
 title: React Native SDK
 ---
 
-# Authenta React Native SDK Documentation
+# Authenta React Native SDK
 
-Welcome to the official documentation for the Authenta React Native SDK. This library allows you to integrate state-of-the-art deepfake and manipulated media detection into your React Native applications.
+The Authenta React Native SDK enables seamless integration of Authenta's AI-powered media analysis and deepfake detection capabilities into your React Native applications.
 
-**GitHub Repository:** [https://github.com/phospheneai/authenta-reactnative-sdk](https://github.com/phospheneai/authenta-reactnative-sdk)
+With the SDK, you can:
 
-## 1. Getting Started
+- Capture images and videos directly from the device camera
+- Upload media securely to the Authenta platform
+- Run AI detection and verification workflows
+- Poll and retrieve analysis results automatically
+- Integrate liveness verification and identity workflows
+
+**GitHub Repository:** https://github.com/phospheneai/authenta-reactnative-sdk
+
+---
+
+## Getting Started
 
 ### Installation
+
+Install the SDK:
 
 ```bash
 npm install @authenta/react-native-sdk
 ```
 
-Then install the required peer dependencies:
+Install the required peer dependencies:
 
 ```bash
 npm install react-native-vision-camera react-native-image-picker
 ```
 
-### Authentication & Initialization
+---
 
-To use the SDK, create an `AuthentaClient` with your API key:
+## Authentication & Initialization
+
+Create an `AuthentaClient` using your Authenta API token.
 
 ```typescript
 import { AuthentaClient } from '@authenta/react-native-sdk';
 
 const client = new AuthentaClient({
-  api:  'Bearer api_xxxxxxxx...',
-  baseUrl: 'https://platform.authenta.ai', // optional — default shown
+  api: 'Bearer YOUR_API_TOKEN',
+  baseUrl: 'https://platform.authenta.ai',
 });
 ```
 
-Your API key can be created and managed in **Settings → API Keys**.
+### Configuration
 
-### Quick Start
+| Property | Required | Description |
+|----------|----------|-------------|
+| `api` | Yes | Bearer token used to authenticate API requests |
+| `baseUrl` | No | Authenta API endpoint. Defaults to `https://platform.authenta.ai` |
 
-Use the built-in `AuthentaCapture` modal to handle camera capture, upload, and result polling with minimal setup:
+---
+
+## Quick Start
+
+The SDK provides the `AuthentaCapture` component which handles:
+
+- Camera capture
+- Upload workflow
+- Processing
+- Result polling
+- Error handling
 
 ```typescript
 import React, { useState } from 'react';
 import { Button } from 'react-native';
-import { AuthentaClient, AuthentaCapture } from '@authenta/react-native-sdk';
-import type { ProcessedMedia } from '@authenta/react-native-sdk';
+import {
+  AuthentaClient,
+  AuthentaCapture
+} from '@authenta/react-native-sdk';
 
 const client = new AuthentaClient({
-  clientId: 'YOUR_CLIENT_ID',
-  clientSecret: 'YOUR_CLIENT_SECRET',
+  api: 'Bearer YOUR_API_TOKEN',
 });
 
 export default function App() {
@@ -57,7 +85,10 @@ export default function App() {
 
   return (
     <>
-      <Button title="Start Verification" onPress={() => setVisible(true)} />
+      <Button
+        title="Start Verification"
+        onPress={() => setVisible(true)}
+      />
 
       <AuthentaCapture
         client={client}
@@ -67,9 +98,9 @@ export default function App() {
           setVisible(false);
           console.log(result);
         }}
-        onError={(err) => {
+        onError={(error) => {
           setVisible(false);
-          console.error(err);
+          console.error(error);
         }}
         livenessCheck={true}
       />
@@ -78,4 +109,44 @@ export default function App() {
 }
 ```
 
-**More:** For detailed Android/iOS setup, available models, all props, advanced headless usage, error handling, and the full API reference, see the SDK README on GitHub: [React Native SDK (GitHub)](https://github.com/phospheneai/authenta-reactnative-sdk#readme)
+## Processing Flow
+
+The SDK automatically manages the complete Authenta processing lifecycle:
+
+```text
+Capture Media
+      ↓
+Create Upload Job
+      ↓
+Upload Media
+      ↓
+Finalize Upload
+      ↓
+Start Analysis
+      ↓
+Poll Status
+      ↓
+Receive Results
+```
+
+No manual handling of `jobId`, uploads, or result polling is required when using `AuthentaCapture`.
+
+---
+
+## Error Handling
+
+Provide an `onError` callback to handle SDK and API errors.
+
+```typescript
+onError={(error) => {
+  console.error(error);
+}}
+```
+
+---
+
+## Next Steps
+
+For advanced usage, custom capture workflows, headless integrations, platform-specific setup instructions, and the complete API reference, visit the SDK repository:
+
+https://github.com/phospheneai/authenta-reactnative-sdk#readme
