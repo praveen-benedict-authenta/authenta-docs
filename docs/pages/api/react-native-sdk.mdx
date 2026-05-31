@@ -4,31 +4,30 @@ title: React Native SDK
 
 # Authenta React Native SDK
 
-The Authenta React Native SDK enables seamless integration of Authenta's AI-powered media analysis and deepfake detection capabilities into your React Native applications.
+The Authenta SDK provides tools for integrating media analysis, liveness verification, deepfake detection, face similarity, and face embedding workflows into React Native applications.
 
-With the SDK, you can:
+The SDK is available as two packages:
 
-- Capture images and videos directly from the device camera
-- Upload media securely to the Authenta platform
-- Run AI detection and verification workflows
-- Poll and retrieve analysis results automatically
-- Integrate liveness verification and identity workflows
+| Package | Description |
+|----------|-------------|
+| `@authenta/core` | TypeScript API client for React Native and Node.js |
+| `@authenta/react-native` | React Native camera capture component built on top of `@authenta/core` |
 
 **GitHub Repository:** https://github.com/phospheneai/authenta-reactnative-sdk
 
 ---
 
-## Getting Started
+# Installation
 
-### Installation
+## React Native Applications
 
-Install the SDK:
+Install the React Native SDK:
 
 ```bash
-npm install @authenta/react-native-sdk
+npm install @authenta/react-native
 ```
 
-Install the required peer dependencies:
+Install required peer dependencies:
 
 ```bash
 npm install react-native-vision-camera react-native-image-picker
@@ -36,106 +35,244 @@ npm install react-native-vision-camera react-native-image-picker
 
 ---
 
-## Authentication & Initialization
+## Headless / Custom UI Integration
 
-Create an `AuthentaClient` using your Authenta API token.
+Install the core SDK:
+
+```bash
+npm install @authenta/core
+```
+
+---
+
+# Authentication & Initialization
+
+Create an `AuthentaClient` instance.
 
 ```typescript
-import { AuthentaClient } from '@authenta/react-native-sdk';
+import { AuthentaClient } from '@authenta/react-native';
 
 const client = new AuthentaClient({
-  api: 'Bearer YOUR_API_TOKEN',
+  api_key: 'YOUR_API_KEY',
+  auth_enabled: true,
   baseUrl: 'https://platform.authenta.ai',
 });
 ```
 
-### Configuration
+## Configuration
 
 | Property | Required | Description |
 |----------|----------|-------------|
-| `api` | Yes | Bearer token used to authenticate API requests |
-| `baseUrl` | No | Authenta API endpoint. Defaults to `https://platform.authenta.ai` |
+| `api_key` | Yes | Authenta API key |
+| `auth_enabled` | No | Enables authenticated requests |
+| `baseUrl` | No | Defaults to `https://platform.authenta.ai` |
 
 ---
 
-## Quick Start
+# Quick Start
 
-The SDK provides the `AuthentaCapture` component which handles:
+The `AuthentaCapture` component provides a complete verification workflow including:
 
-- Camera capture
-- Upload workflow
+- Camera permissions
+- Image and video capture
+- Upload handling
 - Processing
 - Result polling
-- Error handling
+- Result display
 
-```typescript
+```tsx
 import React, { useState } from 'react';
-import { Button } from 'react-native';
-import {
-  AuthentaClient,
-  AuthentaCapture
-} from '@authenta/react-native-sdk';
+import { AuthentaClient, AuthentaCapture } from '@authenta/react-native';
 
 const client = new AuthentaClient({
-  api: 'Bearer YOUR_API_TOKEN',
+  api_key: 'YOUR_API_KEY',
+  auth_enabled: true,
 });
 
 export default function App() {
-  const [visible, setVisible] = useState(false);
+  const [captureOpen, setCaptureOpen] = useState(false);
 
   return (
-    <>
-      <Button
-        title="Start Verification"
-        onPress={() => setVisible(true)}
-      />
-
-      <AuthentaCapture
-        client={client}
-        visible={visible}
-        onClose={() => setVisible(false)}
-        onResult={(result) => {
-          setVisible(false);
-          console.log(result);
-        }}
-        onError={(error) => {
-          setVisible(false);
-          console.error(error);
-        }}
-        livenessCheck={true}
-      />
-    </>
+    <AuthentaCapture
+      client={client}
+      modelType="FI-1"
+      visible={captureOpen}
+      livenessCheck={true}
+      faceswapCheck={false}
+      faceSimilarityCheck={false}
+      onClose={() => setCaptureOpen(false)}
+      onResult={(media) => console.log(media)}
+      onError={(err) => console.error(err.message)}
+    />
   );
 }
 ```
 
-## Processing Flow
+---
 
-The SDK automatically manages the complete Authenta processing lifecycle:
+# Verification Helpers
 
-```text
-Capture Media
-      ↓
-Create Upload Job
-      ↓
-Upload Media
-      ↓
-Finalize Upload
-      ↓
-Start Analysis
-      ↓
-Poll Status
-      ↓
-Receive Results
+The SDK provides high-level verification methods.
+
+## Liveness Detection
+
+```typescript
+const result = await client.verify_liveness(imageUri);
+
+console.log(result.isSpoof);
 ```
-
-No manual handling of `jobId`, uploads, or result polling is required when using `AuthentaCapture`.
 
 ---
 
-## Error Handling
+## Face Swap Detection
 
-Provide an `onError` callback to handle SDK and API errors.
+```typescript
+const result = await client.verify_deepfake(videoUri);
+
+console.log(result.isDeepFake);
+```
+
+---
+
+## Face Similarity
+
+```typescript
+const result = await client.verify_similarity(
+  selfieUri,
+  referenceUri
+);
+
+console.log(result.isSimilar);
+console.log(result.similarityScore);
+```
+
+---
+
+## Face Embeddings
+
+```typescript
+const result = await client.verify_face_embeddings(imageUri);
+
+console.log(result.faceVector);
+```
+
+---
+
+# Upload & Poll in a Single Call
+
+The simplest API is:
+
+```typescript
+const result = await client.uploadAndPoll(
+  fileUri,
+  modelType
+);
+```
+
+This automatically performs:
+
+```text
+Upload
+   ↓
+Finalize
+   ↓
+Poll
+   ↓
+Fetch Results
+```
+
+and returns the processed result.
+
+---
+
+# Advanced Workflow
+
+For complete control, use the low-level APIs.
+
+```typescript
+const media = await client.upload(
+  fileUri,
+  modelType
+);
+
+await client.finalizeMedia(media.jobId);
+
+const result = await client.pollResult(
+  media.jobId
+);
+
+const detection = await client.getResult(result);
+```
+
+---
+
+# Processing Flow
+
+```text
+uploadAndPoll()
+
+1. upload()
+   ├─ createMedia()
+   └─ uploadToS3()
+
+2. finalizeMedia()
+
+3. pollResult()
+
+4. getResult()
+```
+
+The SDK automatically handles:
+
+- Upload URL generation
+- File uploads
+- Job finalization
+- Polling
+- Result retrieval
+
+---
+
+# Available Client Methods
+
+## High-Level APIs
+
+| Method | Description |
+|----------|-------------|
+| `uploadAndPoll()` | Upload, finalize, poll, and fetch results |
+| `verify_liveness()` | Face liveness verification |
+| `verify_deepfake()` | Face swap detection |
+| `verify_similarity()` | Face similarity verification |
+| `verify_face_embeddings()` | Generate face embeddings |
+
+---
+
+## Low-Level APIs
+
+| Method | Description |
+|----------|-------------|
+| `upload()` | Upload media |
+| `finalizeMedia()` | Finalize uploaded media |
+| `pollResult()` | Wait for job completion |
+| `getResult()` | Fetch processed results |
+| `createMedia()` | Create media record |
+| `getMedia()` | Retrieve media |
+| `listMedia()` | List uploaded media |
+| `deleteMedia()` | Delete media |
+| `get_task_id()` | Resolve model type to task ID |
+
+---
+
+# Which Package Should I Use?
+
+| Scenario | Package |
+|----------|----------|
+| React Native app with built-in camera UI | `@authenta/react-native` |
+| React Native app with custom camera UI | `@authenta/core` |
+| Node.js backend or scripts | `@authenta/core` |
+
+---
+
+# Error Handling
 
 ```typescript
 onError={(error) => {
@@ -143,10 +280,21 @@ onError={(error) => {
 }}
 ```
 
+The SDK exposes typed errors and structured API responses to simplify error handling and debugging.
+
 ---
 
-## Next Steps
+# Next Steps
 
-For advanced usage, custom capture workflows, headless integrations, platform-specific setup instructions, and the complete API reference, visit the SDK repository:
+For advanced workflows, integration tests, runnable examples, and the complete API reference, visit:
 
-https://github.com/phospheneai/authenta-reactnative-sdk#readme
+https://github.com/phospheneai/authenta-reactnative-sdk
+
+You can also explore:
+
+- `uploadAndPoll()` examples
+- Face liveness verification
+- Face similarity verification
+- Face embedding generation
+- Media CRUD operations
+- Full React Native demo application
