@@ -1,31 +1,21 @@
 {
   "info": {
-    "_postman_id": "137016d8-b38a-43c9-864c-8c86f3646f65",
+    "_postman_id": "ebc0f0b1-7869-462e-bd03-1f92819cd688",
     "name": "Authenta-API",
-    "description": "# Authenta API Postman Collection Overview\n\nThe Authenta API Postman Collection lets you quickly test and integrate deepfake detection endpoints.  \nIt includes sample requests for uploading media, fetching analysis results, and managing your media library.\n\n## How to Use\n\n### 1. Import the Collection\n\nDownload the Postman collection JSON and import it into Postman.\n\n---\n\n### 2. Configure Authorization\n\nSet the Authorization type to **Bearer Token** and use the following API key:\n\n```text\napi_3d1b12567e79ee6e867d3fe2c0a99e39100952fe45ce4784146af951729de098\n```\n\n---\n\n### 3. Set Collection Variables (Optional but Recommended)\n\nSetting these as collection variables or environments means you only need to enter them once, and all requests will use them automatically.\n\n- `authenta` — Your API domain  \n  Example: `https://platform-prod.authenta.ai`\n\n---\n\n### 4. Run Requests\n\n- **Upload Media** — Send a `POST` request with media details.\n- **Fetch Media** — Use `GET` to list or retrieve specific media.\n- **Delete Media** — Use `DELETE` to remove items.\n\n---\n\n## Notes\n\n- All requests require valid API authorization.\n- Ensure the Bearer token is included in every request.\n- Refer to the API documentation for endpoint details, authentication flow, and request/response formats.",
+    "description": "# Authenta API\n\nAuthenta is an AI-powered digital trust and media verification platform that helps organizations detect deepfakes, identify manipulated content, verify documents, and analyze digital media authenticity at scale.\n\nThis Postman collection provides a complete workflow for integrating with Authenta APIs, including task creation, file uploads, processing, and result retrieval.\n\n---\n\n# Getting Started\n\n## Prerequisites\n\nBefore using the APIs, ensure you have:\n\n- An active Authenta account\n    \n- A valid Authenta API Key\n    \n- Postman installed\n    \n\n---\n\n# Step 1: Import the Collection\n\n1. Open Postman.\n    \n2. Click **Import**.\n    \n3. Select the Authenta Collection JSON file.\n    \n4. Import the collection.\n    \n\n---\n\n# Step 2: Create an Environment\n\nCreate a Postman environment to store configuration values.\n\n1. Open **Environments**.\n    \n2. Click **Create Environment**.\n    \n3. Name the environment **Authenta**.\n    \n4. Add the following variables:\n    \n\n| Variable | Value |\n| --- | --- |\n| authenta | [https://platform.authenta.ai](https://platform.authenta.ai/) |\n| apikey | YOUR_API_KEY |\n\n1. Save the environment.\n    \n2. Select the **Authenta** environment from the environment dropdown.\n    \n\n---\n\n# Step 3: Configure Authentication\n\nAll Authenta APIs require Bearer Token authentication.\n\nConfigure the collection authorization as:\n\n**Type**\n\n``` text\nBearer Token\n\n ```\n\n**Token**\n\n``` text\n{{apikey}}\n\n ```\n\nThe collection automatically sends:\n\n``` http\nAuthorization: Bearer {{apikey}}\n\n ```\n\nNo additional authentication setup is required.\n\n---\n\n# Verify Configuration\n\nBefore running the collection:\n\n✓ Environment selected\n\n✓ `authenta` variable configured\n\n✓ `apikey` variable configured\n\n✓ Valid API key available\n\n---\n\n# Understanding the Authenta Workflow\n\nAuthenta uses an asynchronous processing workflow.\n\n``` text\nCreate Task\n    ↓\nReceive Upload URL(s)\n    ↓\nUpload File(s) to S3\n    ↓\nFinalize Upload\n    ↓\nProcessing Starts\n    ↓\nRetrieve Results\n\n ```\n\n---\n\n# Step 1: Create a Task\n\nCreate a task by specifying:\n\n- The AI model to run\n    \n- The files that will be uploaded\n    \n- File metadata\n    \n\nExample request:\n\n``` json\n{\n  \"inputs\": [\n    {\n      \"contentType\": \"image/jpeg\",\n      \"fileName\": \"image.jpg\",\n      \"sizeBytes\": 414241,\n      \"slotName\": \"original\"\n    }\n  ],\n  \"taskTypeId\": \"1\"\n}\n\n ```\n\n---\n\n# File Upload Requirements\n\nThe metadata provided in the task creation request must exactly match the file that will be uploaded.\n\n| Field | Requirement |\n| --- | --- |\n| fileName | Must exactly match the uploaded file name |\n| sizeBytes | Must exactly match the file size in bytes |\n| contentType | Must exactly match the file MIME type |\n| slotName | Must match the required input slot |\n\nExample:\n\n``` json\n{\n  \"contentType\": \"image/jpeg\",\n  \"fileName\": \"image.jpg\",\n  \"sizeBytes\": 414241,\n  \"slotName\": \"original\"\n}\n\n ```\n\n### Important\n\nAny mismatch between the uploaded file and the metadata supplied during task creation may result in upload validation failure.\n\n---\n\n# Understanding taskId\n\nEach task creation request returns a unique task identifier.\n\nExample:\n\n``` json\n{\n  \"taskId\": \"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx\"\n}\n\n ```\n\nThe `taskId` is required for:\n\n- Upload finalization\n    \n- Status tracking\n    \n- Result retrieval\n    \n- Task management\n    \n- Audit and reporting\n    \n\nStore this value for all future operations.\n\n---\n\n# Step 2: Upload Files\n\nThe task creation response returns one or more pre-signed S3 upload URLs.\n\nUpload each file using the provided URL.\n\nMethod:\n\n``` http\nPUT\n\n ```\n\nUpload the exact file described in the task creation request.\n\nThe uploaded file must match:\n\n- File name\n    \n- File size\n    \n- Content type\n    \n\nprovided during task creation.\n\n---\n\n# Step 3: Finalize Upload\n\nAfter all uploads complete successfully, call the Finalize endpoint.\n\nExample:\n\n``` http\nPOST /api/v1/tasks/{taskId}/finalize\n\n ```\n\nFinalization informs Authenta that:\n\n- All uploads are complete\n    \n- Files are ready for processing\n    \n- Analysis can begin\n    \n\nWithout finalization:\n\n- Processing will not start\n    \n- Results will not be generated\n    \n- The task remains incomplete\n    \n\n---\n\n# Step 4: Monitor Processing\n\nRetrieve task status using:\n\n``` http\nGET /api/v1/tasks/{taskId}\n\n ```\n\nTypical statuses include:\n\n| Status | Description |\n| --- | --- |\n| PENDING | Task created |\n| UPLOADING | Awaiting uploads |\n| PROCESSING | Analysis in progress |\n| COMPLETED | Analysis finished |\n| FAILED | Processing failed |\n\n---\n\n# Step 5: Retrieve Results\n\nOnce processing is complete, retrieve the task results.\n\nThe response may include:\n\n- Detection outcome\n    \n- Confidence scores\n    \n- Risk indicators\n    \n- Processing metadata\n    \n- Analysis reports\n    \n- Model-specific outputs\n    \n\nResponse structure varies depending on the selected AI model.\n\n---\n\n# Available AI Models\n\n| ID | Model | Description | Supported Formats |\n| --- | --- | --- | --- |\n| 1 | AI Image Detection | Detects AI-generated images | JPEG, PNG |\n| 2 | AI Audio Detection | Detects AI-generated audio | MP3, WAV, M4A |\n| 3 | AI Video Detection | Detects AI-generated videos | MP4, MOV |\n| 4 | Face Swap Detection | Detects face-swapped videos | MP4, MOV, WebM |\n| 5 | Image Forgery Detection | Detects image tampering and manipulation | JPEG, PNG |\n| 6 | Document Intelligence | Detects document forgery and tampering | JPEG, PNG, PDF |\n| 7 | Face Liveness Detection | Detects presentation attacks and spoofing | JPEG, PNG |\n| 8 | Face Intelligence | Face verification and analysis workflow | JPEG, PNG, MP4, MOV, WebM |\n| 9 | Face Embedding | Generates face embedding vectors | JPEG, PNG |\n| 10 | Audio Splitter | Separates foreground and background audio | MP3, WAV, M4A |\n| 11 | EKYC Deepfake Detection | Deepfake detection for identity verification workflows | MP4, MOV, WebM |\n\n---\n\n# Delete a Task\n\nDelete a task and associated records.\n\n``` http\nDELETE /api/v1/tasks/{taskId}\n\n ```\n\n---\n\n# Best Practices\n\n- Always use environment variables instead of hardcoded values.\n    \n- Never expose or share your API key.\n    \n- Ensure uploaded file metadata exactly matches the actual file.\n    \n- Finalize uploads after all files are uploaded.\n    \n- Store the returned `jobId` for future operations.\n    \n- Large files may require longer processing times.\n    \n- Monitor task status before requesting results.\n    \n\n---\n\n# Support\n\nIf you experience issues while integrating with Authenta APIs, verify:\n\n- The Authenta environment is selected.\n    \n- The API key is valid.\n    \n- Upload metadata matches the uploaded file.\n    \n- The task has been finalized.\n    \n- Processing has completed before retrieving results.\n    \n\nFor detailed endpoint specifications, request and response schemas, and integration guidance, refer to the Authenta API Reference documentation.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "55303056",
-    "_collection_link": "https://go.postman.co/collection/55303056-137016d8-b38a-43c9-864c-8c86f3646f65?source=collection_link"
+    "_collection_link": "https://go.postman.co/collection/55303056-ebc0f0b1-7869-462e-bd03-1f92819cd688?source=collection_link"
   },
   "item": [
     {
       "name": "Upload a Media",
       "request": {
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{apikey}}",
-              "type": "string"
-            }
-          ]
-        },
         "method": "POST",
         "header": [],
         "body": {
           "mode": "raw",
-          "raw": "{\r\n    \"inputs\": [\r\n        {\r\n            \"contentType\": \"image/jpeg\",\r\n            \"fileName\": \"real\",\r\n            \"sizeBytes\": 637067,\r\n            \"slotName\": \"original\"\r\n        }\r\n    ],\r\n    \"taskTypeId\": \"1\"   \r\n}",
+          "raw": "{\r\n    \"inputs\": [\r\n        {\r\n            \"contentType\": \"image/jpeg\",\r\n            \"fileName\": \"1\",\r\n            \"sizeBytes\": 414241,\r\n            \"slotName\": \"original\"\r\n        }\r\n    ],\r\n    \"taskTypeId\": \"1\"   \r\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -43,28 +33,42 @@
             "jobs"
           ]
         },
-        "description": "## Upload a Media\n\nThis endpoint allows you to upload a media file (such as a video) to the Authenta platform. It is typically used to register new media assets for processing, storage, or further analysis.\n\n### Required Headers\n\n- `x-client-id`: `{{x-client-id}}`\n    \n- `x-client-secret`: `{{x-client-secret}}`\n    \n\n### Request URL\n\n```\nPOST {{authenta}}/api/media\n\n ```\n\n- `{{authenta}}`: Base URL for the Authenta API. Set this as an environment or collection variable for flexibility across environments.\n    \n\n### Sample Request Body\n\n``` json\n{\n  \"name\": \"test_00000214\",\n  \"contentType\": \"video/mp4\",\n  \"size\": 1414709,\n  \"modelType\": \"DF-1\"\n}\n\n ```\n\n#### Field Explanations\n\n- `name` (string): The name or identifier for the media file.\n    \n- `contentType` (string): The MIME type of the media (e.g., `video/mp4`).\n    \n- `size` (integer): The size of the media file in bytes.\n    \n- `modelType` (string): The model type associated with the media (e.g., `DF-1`).\n    \n\n### Variable Usage\n\n- `{{authenta}}`: Base API URL.\n    \n- `{{x-client-id}}`: Client ID for authentication.\n    \n- `{{x-client-secret}}`: Client secret for authentication.\n    \n\nRefer to these requests for additional context on authentication and media upload workflows."
+        "description": "**Description**\n\n> Creates a new analysis task and generates secure upload URL(s) for the media files. Specify the AI model to run along with the file metadata that will be uploaded. \n  \n\n**Notes**\n\nThe provided file metadata (`fileName`, `sizeBytes`, and `contentType`) must exactly match the uploaded file."
+      },
+      "response": []
+    },
+    {
+      "name": "Upload to S3",
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "file",
+          "file": {
+            "src": ""
+          }
+        },
+        "url": {
+          "raw": "{{uploadUrl}}",
+          "host": [
+            "{{uploadUrl}}"
+          ]
+        },
+        "description": "## Description\n\n> Uploads the media file directly to the secure pre-signed URL returned by the task creation endpoint.\n\n## Notes\n\n- Upload the exact file specified during task creation.\n- The upload URL is temporary and intended for a single upload.\n- A successful upload returns HTTP `200 OK`."
       },
       "response": []
     },
     {
       "name": "Finalize Upload",
       "request": {
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{apikey}}",
-              "type": "string"
-            }
-          ]
-        },
         "method": "POST",
         "header": [],
         "body": {
           "mode": "raw",
-          "raw": "{\r\n    \"inputs\": [\r\n        {\r\n            \"contentType\": \"image/jpeg\",\r\n            \"fileName\": \"real\",\r\n            \"sizeBytes\": 637067,\r\n            \"slotName\": \"original\"\r\n        }\r\n    ],\r\n    \"taskTypeId\": \"1\"   \r\n}",
+          "raw": "",
           "options": {
             "raw": {
               "language": "json"
@@ -72,7 +76,7 @@
           }
         },
         "url": {
-          "raw": "{{authenta}}/api/v1/jobs/{{jobid}}/finalize",
+          "raw": "{{authenta}}/api/v1/jobs/{{jobId}}/finalize",
           "host": [
             "{{authenta}}"
           ],
@@ -80,11 +84,11 @@
             "api",
             "v1",
             "jobs",
-            "{{jobid}}",
+            "{{jobId}}",
             "finalize"
           ]
         },
-        "description": "## Upload a Media\n\nThis endpoint allows you to upload a media file (such as a video) to the Authenta platform. It is typically used to register new media assets for processing, storage, or further analysis.\n\n### Required Headers\n\n- `x-client-id`: `{{x-client-id}}`\n    \n- `x-client-secret`: `{{x-client-secret}}`\n    \n\n### Request URL\n\n```\nPOST {{authenta}}/api/media\n\n ```\n\n- `{{authenta}}`: Base URL for the Authenta API. Set this as an environment or collection variable for flexibility across environments.\n    \n\n### Sample Request Body\n\n``` json\n{\n  \"name\": \"test_00000214\",\n  \"contentType\": \"video/mp4\",\n  \"size\": 1414709,\n  \"modelType\": \"DF-1\"\n}\n\n ```\n\n#### Field Explanations\n\n- `name` (string): The name or identifier for the media file.\n    \n- `contentType` (string): The MIME type of the media (e.g., `video/mp4`).\n    \n- `size` (integer): The size of the media file in bytes.\n    \n- `modelType` (string): The model type associated with the media (e.g., `DF-1`).\n    \n\n### Variable Usage\n\n- `{{authenta}}`: Base API URL.\n    \n- `{{x-client-id}}`: Client ID for authentication.\n    \n- `{{x-client-secret}}`: Client secret for authentication.\n    \n\nRefer to these requests for additional context on authentication and media upload workflows."
+        "description": "## Description\n\n> Confirms that all required files have been uploaded successfully and triggers AI processing. \n  \n\n## Notes\n\n- Processing will not begin until the upload is finalized.\n    \n- Call this endpoint only after all uploads have completed successfully.\n    \n- The task status will transition to processing after finalization."
       },
       "response": []
     },
@@ -92,18 +96,7 @@
       "name": "Fetch Media",
       "request": {
         "method": "GET",
-        "header": [
-          {
-            "key": "x-client-id",
-            "value": "{{x-client-id}}",
-            "type": "text"
-          },
-          {
-            "key": "x-client-secret",
-            "value": "{{x-client-secret}}",
-            "type": "text"
-          }
-        ],
+        "header": [],
         "url": {
           "raw": "{{authenta}}/api/v1/jobs",
           "host": [
@@ -115,7 +108,7 @@
             "jobs"
           ]
         },
-        "description": "## Fetch Media\n\nRetrieves a list of media items from the Authenta API.\n\n### Required Headers\n\n- `x-client-id`: {{x-client-id}}\n    \n- `x-client-secret`: {{x-client-secret}}\n    \n\n### Endpoint\n\n```\nGET {{authenta}}/api/media\n\n ```\n\n### Variables\n\n- `authenta`: Base URL for the Authenta API\n    \n- `x-client-id`: Client ID for authentication\n    \n- `x-client-secret`: Client secret for authentication\n    \n\n### Example Usage\n\n```\nGET {{authenta}}/api/media\nHeaders:\n  x-client-id: {{x-client-id}}\n  x-client-secret: {{x-client-secret}}\n\n ```\n\n### Response\n\nReturns a JSON array of media items. The structure of each media item depends on your API implementation.\n\n---\n\n**Note:** Ensure that the required variables are defined in your environment or replaced with actual values before sending the request."
+        "description": "## Description\n\n> Retrieves a list of analysis tasks along with their current processing status and metadata. \n  \n\n## Returns\n\n- Job ID\n    \n- Task Type\n    \n- Processing Status\n    \n- Creation Timestamp\n    \n- Last Updated Timestamp"
       },
       "response": []
     },
@@ -125,7 +118,7 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "{{authenta}}/api/v1/jobs/{{jobid}}",
+          "raw": "{{authenta}}/api/v1/jobs/{{jobId}}",
           "host": [
             "{{authenta}}"
           ],
@@ -133,10 +126,10 @@
             "api",
             "v1",
             "jobs",
-            "{{jobid}}"
+            "{{jobId}}"
           ]
         },
-        "description": "# Fetch a Particular Media\n\nRetrieves a Particular media from the Authenta API\n\n### Required Headers\n\n- `x-client-id`: {{x-client-id}}\n    \n- `x-client-secret`: {{x-client-secret}}\n    \n\n### Endpoint\n\n```\nGET {{authenta}}/api/media/{{mid}}\n\n ```\n\n### Variables\n\n- `{{authenta}}`: Base URL for the API\n    \n- `{{x-client-id}}`: Your client ID\n    \n- `{{x-client-secret}}`: Your client secret\n    \n\n### Example Usage\n\n```\ncurl --request GET '{{authenta}}/api/media/{{mid}}' \\\n  --header 'x-client-id: {{x-client-id}}' \\\n  --header 'x-client-secret: {{x-client-secret}}'\n\n ```\n\n### Response\n\nReturns the media resource corresponding to the provided media ID.\n\n- **200 OK**: Media resource details\n    \n- **401 Unauthorized**: Invalid or missing credentials\n    \n- **404 Not Found**: Media resource does not exist"
+        "description": "## Description\n\n> Retrieves detailed information and analysis results for a specific task. \n  \n\n## Returns\n\n- Analysis Results\n    \n- Confidence Scores\n    \n- Processing Metadata\n    \n- Generated Reports\n    \n- Task Status"
       },
       "response": []
     },
@@ -146,7 +139,7 @@
         "method": "DELETE",
         "header": [],
         "url": {
-          "raw": "{{authenta}}/api/v1/jobs/{{jobid}}",
+          "raw": "{{authenta}}/api/v1/jobs/{{jobId}}",
           "host": [
             "{{authenta}}"
           ],
@@ -154,10 +147,10 @@
             "api",
             "v1",
             "jobs",
-            "{{jobid}}"
+            "{{jobId}}"
           ]
         },
-        "description": "# Delete a Media\n\nDelete a Particular media\n\n### Required Headers\n\n- `x-client-id`: {{x-client-id}}\n    \n- `x-client-secret`: {{x-client-secret}}\n    \n\n### Variables\n\n- `authenta`: Base URL for the Authenta API\n    \n- `x-client-id`: Client ID for authentication\n    \n- `x-client-secret`: Client secret for authentication\n    \n\n### Endpoint\n\n```\nDELETE {{authenta}}/api/media/{{mid}}\n\n ```\n\n### Example Usage\n\n``` http\nDELETE {{authenta}}/api/media/693134f59e540dd23c88a8cf\nx-client-id: {{x-client-id}}\nx-client-secret: {{x-client-secret}}\n\n ```\n\n### Response\n\n- **204 No Content**: Media deleted successfully\n    \n- **401 Unauthorized**: Invalid or missing credentials\n    \n- **404 Not Found**: Media not found"
+        "description": "## Description\n\n> Permanently removes a task and its associated uploaded media from the platform. \n  \n\n## Notes\n\n- Deleted tasks cannot be recovered.\n    \n- Associated media and analysis results will also be removed."
       },
       "response": []
     }
@@ -191,22 +184,29 @@
         "packages": {},
         "requests": {},
         "exec": [
-          ""
+          "const res = pm.response.json();\r",
+          "\r",
+          "pm.collectionVariables.set(\"jobid\", res.job.id);\r",
+          "pm.collectionVariables.set(\"uploadUrl\", res.inputs[0].uploadUrl);\r",
+          "\r",
+          "postman.setNextRequest(\"Upload To S3\");\r",
+          "\r",
+          "pm.test(\"S3 Upload Successful\", function () {\r",
+          "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);\r",
+          "});\r",
+          "\r",
+          "postman.setNextRequest(\"Finalize Upload\");"
         ]
       }
     }
   ],
   "variable": [
     {
-      "key": "apikey",
-      "value": "https://platform-dev.authenta.ai"
-    },
-    {
-      "key": "jobid",
+      "key": "jobId",
       "value": ""
     },
     {
-      "key": "authenta",
+      "key": "uploadUrl",
       "value": ""
     }
   ]
