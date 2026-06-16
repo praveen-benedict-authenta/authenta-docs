@@ -10,6 +10,101 @@
   "item": [
     {
       "name": "Upload a Media",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();\r",
+              "\r",
+              "// Save variables\r",
+              "pm.collectionVariables.set(\r",
+              "    \"jobId\",\r",
+              "    res.job.id\r",
+              ");\r",
+              "\r",
+              "pm.collectionVariables.set(\r",
+              "    \"uploadUrl\",\r",
+              "    res.inputs[0].uploadUrl\r",
+              ");\r",
+              "\r",
+              "// Success test\r",
+              "pm.test(\"Job Created\", function () {\r",
+              "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);\r",
+              "});\r",
+              "\r",
+              "pm.visualizer.set(`\r",
+              "<div style=\"\r",
+              "    font-family: Inter, Arial, sans-serif;\r",
+              "    background:#1e1e1e;\r",
+              "    color:#ffffff;\r",
+              "    padding:24px;\r",
+              "    border-radius:12px;\r",
+              "\">\r",
+              "\r",
+              "    <h1 style=\"color:#4ade80;\">\r",
+              "        ✅ Job Created\r",
+              "    </h1>\r",
+              "\r",
+              "    <p>\r",
+              "        <strong>Job ID:</strong> ${pm.collectionVariables.get(\"jobId\")}\r",
+              "    </p>\r",
+              "\r",
+              "    <hr style=\"border:1px solid #444;\">\r",
+              "\r",
+              "    <h2 style=\"color:#60a5fa;\">\r",
+              "        Step 2\r",
+              "    </h2>\r",
+              "\r",
+              "    <div style=\"\r",
+              "        background:#2a2a2a;\r",
+              "        padding:16px;\r",
+              "        border-radius:8px;\r",
+              "        margin-bottom:16px;\r",
+              "    \">\r",
+              "        <p>\r",
+              "            Open:\r",
+              "            <strong>Upload to S3</strong>\r",
+              "        </p>\r",
+              "\r",
+              "        <p>\r",
+              "            Body → Binary\r",
+              "        </p>\r",
+              "\r",
+              "        <p>\r",
+              "            Select your file and click\r",
+              "            <strong>Send</strong>\r",
+              "        </p>\r",
+              "    </div>\r",
+              "\r",
+              "    <h2 style=\"color:#fbbf24;\">\r",
+              "        Step 3\r",
+              "    </h2>\r",
+              "\r",
+              "    <div style=\"\r",
+              "        background:#2a2a2a;\r",
+              "        padding:16px;\r",
+              "        border-radius:8px;\r",
+              "    \">\r",
+              "        <p>\r",
+              "            Open:\r",
+              "            <strong>Finalize Upload</strong>\r",
+              "        </p>\r",
+              "\r",
+              "        <p>\r",
+              "            Click <strong>Send</strong>\r",
+              "        </p>\r",
+              "    </div>\r",
+              "\r",
+              "</div>\r",
+              "`);"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [],
@@ -39,6 +134,23 @@
     },
     {
       "name": "Upload to S3",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"S3 Upload Successful\", function () {\r",
+              "    pm.expect(pm.response.code).to.be.oneOf([200,204]);\r",
+              "});\r",
+              "\r",
+              "postman.setNextRequest(\"Finalize Upload\");"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
       "request": {
         "auth": {
           "type": "noauth"
@@ -48,7 +160,7 @@
         "body": {
           "mode": "file",
           "file": {
-            "src": ""
+            "src": "postman-cloud:///1f16809e-3d99-4d40-ab2d-6066c3c90d2a"
           }
         },
         "url": {
@@ -184,18 +296,7 @@
         "packages": {},
         "requests": {},
         "exec": [
-          "const res = pm.response.json();\r",
-          "\r",
-          "pm.collectionVariables.set(\"jobId\", res.job.id);\r",
-          "pm.collectionVariables.set(\"uploadUrl\", res.inputs[0].uploadUrl);\r",
-          "\r",
-          "postman.setNextRequest(\"Upload To S3\");\r",
-          "\r",
-          "pm.test(\"S3 Upload Successful\", function () {\r",
-          "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);\r",
-          "});\r",
-          "\r",
-          "postman.setNextRequest(\"Finalize Upload\");"
+          ""
         ]
       }
     }
