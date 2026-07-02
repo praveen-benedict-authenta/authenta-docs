@@ -49,29 +49,31 @@ Returned when a request attempts to process media (e.g., uploading a video) but 
 
 ## When Are Credits Consumed?
 
-Credits are consumed when you perform **media-processing operations**, typically:
+Credits are consumed when a job is finalized and processed, typically:
 
-- Uploading media for analysis (e.g., `POST /api/media`)
+- Finalizing a job for analysis (e.g., `POST /api/v1/jobs/{id}/finalize`)
 - Any operation that triggers a detection run or similar computation
 
 Operations like:
 
-- Listing media (`GET /api/media`)
-- Fetching a single media record (`GET /api/media/{mid}`)
-- Deleting media (`DELETE /api/media/{mid}`)
+- Creating a job (`POST /api/v1/jobs`)
+- Listing jobs (`GET /api/v1/jobs`)
+- Fetching a single job (`GET /api/v1/jobs/{id}`)
+- Deleting a job (`DELETE /api/v1/jobs/{id}`)
+- Cancelling a job before it starts processing (`POST /api/v1/jobs/{id}/cancel`)
 
 do **not** consume credits.
 
-> ⚠️ API calls are unlimited. Credits are only consumed when **processing media**.
+> ⚠️ API calls are unlimited. Credits are only consumed when a job is **finalized and processed**.
 
 ### Example Scenarios
 
 | Situation                                    | Credits | Result                                                             |
 | -------------------------------------------- | ------- | ------------------------------------------------------------------ |
-| Upload media, credits OK                     | ✅      | Request succeeds                                                   |
-| Upload media, credits insufficient           | ❌      | `INSUFFICIENT_BALANCE` (402) - Insufficient balance message |
-| GET media list                               | ✅/❌   | Request succeeds (no credits needed)                              |
-| DELETE media record                          | ✅/❌   | Request succeeds (no credits needed)                              |
+| Finalize job, credits OK                     | ✅      | Request succeeds, job is queued for processing                     |
+| Finalize job, credits insufficient           | ❌      | `INSUFFICIENT_BALANCE` (402) - Insufficient balance message |
+| GET jobs list                                | ✅/❌   | Request succeeds (no credits needed)                              |
+| DELETE job                                   | ✅/❌   | Request succeeds (no credits needed)                              |
 
 ## Monitoring Usage
 
@@ -138,4 +140,4 @@ Check your API key usage and credit consumption regularly to plan budget and sca
 
 - [Learn how to **authenticate and call the API**](/api/authentication)
 - [See practical request examples](/api/making-api-calls)
-- [Explore the Media API endpoints](/api/reference/jobs)
+- [Explore the Jobs API endpoints](/api/reference/jobs)

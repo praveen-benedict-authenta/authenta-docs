@@ -2,22 +2,24 @@
 
 This page explains how to correctly interact with the Authenta API after you have created an **API key**.
 
-You’ll learn how to structure requests, authenticate, upload media using the **two-step upload flow**, and handle all API responses.
+You'll learn how to structure requests, authenticate, upload media using the **job-based upload flow**, and handle all API responses.
 
 # Base URL
 
 Authenta exposes its API under:
 
 ```txt
-https://platform.authenta.ai/api
+https://platform.authenta.ai/api/v1
 ```
 
 All routes extend this base URL:
 
-- `POST /media`
-- `GET /media`
-- `GET /media/{mid}`
-- `DELETE /media/{mid}`
+- `POST /jobs`
+- `GET /jobs`
+- `GET /jobs/{id}`
+- `POST /jobs/{id}/finalize`
+- `POST /jobs/{id}/cancel`
+- `DELETE /jobs/{id}`
 
 Your deployment (dev, staging, on-prem) may use a different domain.
 
@@ -32,7 +34,7 @@ Authorization: Bearer <your_api_key>
 Example:
 
 ```http
-Authorization: Bearer api__xxxxxxxx...
+Authorization: Bearer api_xxxxxxxx...
 ```
 
 If this header is missing or invalid, the API returns:
@@ -44,14 +46,14 @@ If this header is missing or invalid, the API returns:
 ### cURL
 
 ```bash
-curl -X GET "https://platform.authenta.ai/api/media" \
-  -H "Authorization: Bearer api__xxxxxxxx..."
+curl -X GET "https://platform.authenta.ai/api/v1/jobs" \
+  -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
 ### JavaScript (fetch)
 
 ```js
-const res = await fetch('https://platform.authenta.ai/api/media', {
+const res = await fetch('https://platform.authenta.ai/api/v1/jobs', {
   headers: {
     'Authorization': `Bearer ${process.env.API_KEY}`,
   },
@@ -65,7 +67,7 @@ console.log(await res.json());
 import requests
 
 response = requests.get(
-    "https://platform.authenta.ai/api/media",
+    "https://platform.authenta.ai/api/v1/jobs",
     headers={
         "Authorization": f"Bearer {os.getenv('API_KEY')}"
     }
@@ -73,43 +75,49 @@ response = requests.get(
 print(response.json())
 ```
 
-# Uploading Media (Two-Step Process)
+# Uploading Media (Job-Based Upload Flow)
 
 Authenta **does not** accept raw file uploads directly through the API.
 
-Instead, uploading media consists of **two steps**:
+Instead, uploading media consists of **three steps**:
 
-1. **Create a media record** (via `POST /media`)
-2. **Upload the actual file to a pre-signed S3 URL**
+1. **Create a job** (via `POST /jobs`), specifying the task type and file metadata
+2. **Upload the actual file to a pre-signed S3 URL** returned in the job response
+3. **Finalize the job** (via `POST /jobs/{jobId}/finalize`) to queue it for processing
 
-Processing begins automatically once the file is uploaded.
+Processing begins only after the job is finalized.
 
-## Step 1 — Create Media Record
+## Step 1 — Create a Job
 
 Call:
 
 ```
-POST /media
+POST /jobs
 ```
 
-This creates a media record in Authenta’s database and returns:
+This creates a job in Authenta's database and returns:
 
-- `mid`
-- `uploadUrl` (pre-signed S3 URL)
-- `expiresIn` (seconds)
-- Any additional data needed for upload
+- `jobId`
+- `taskTypeId`
+- `status`
+- `inputs` — one entry per uploaded file, including its `uploadUrl` (pre-signed S3 URL)
 
 ### Example Request
 
 ```bash
-curl -X POST "https://platform.authenta.ai/api/media" \
-  -H "Authorization: Bearer api__xxxxxxxx..." \
+curl -X POST "https://platform.authenta.ai/api/v1/jobs" \
+  -H "Authorization: Bearer api_xxxxxxxx..." \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "video_sample",
-    "contentType": "video/mp4",
-    "size": 1024000,
-    "modelType": "DF-1"
+    "inputs": [
+      {
+        "contentType": "image/jpeg",
+        "fileName": "image.jpg",
+        "sizeBytes": 414241,
+        "slotName": "original"
+      }
+    ],
+    "taskTypeId": "1"
   }'
 ```
 
@@ -117,17 +125,28 @@ curl -X POST "https://platform.authenta.ai/api/media" \
 
 ```json
 {
-  "mid": "692f406f9f68d4b70080bb80",
-  "name": "video_sample",
-  "type": "Video",
-  "status": "INITED",
-  "modelType": "AC-1",
-  "createdAt": "2025-12-02T19:39:27.525Z",
-  "uploadUrl": "https://authenta-storage.s3.us-east-1.amazonaws.com/users/692d5c1d0ac955973b9583fc/media/692f406f9f68d4b70080bb80/original.media?..."
+  "jobId": 3140,
+  "taskTypeId": 1,
+  "status": "waiting_for_finalize",
+  "createdAt": "2026-06-14T18:01:53.402Z",
+  "updatedAt": "2026-06-14T18:01:53.402Z",
+  "inputs": [
+    {
+      "slotName": "original",
+      "uploadUrl": "https://authenta-storage.s3.us-east-1.amazonaws.com/jobs/3140/original?...",
+      "contentType": "image/jpeg",
+      "fileName": "image.jpg",
+      "sizeBytes": 414241
+    }
+  ]
 }
 ```
 
 > ✔ No credits are consumed yet; processing hasn't started.
+
+### Important
+
+The metadata (`fileName`, `sizeBytes`, `contentType`, `slotName`) must exactly match the file you upload in Step 2. Any mismatch may result in upload validation failure.
 
 ## Step 2 — Upload the File to S3
 
@@ -137,59 +156,93 @@ Use the `uploadUrl` returned above to upload the actual media file.
 
 ```bash
 curl -X PUT "https://signed-s3-upload-url" \
-  -H "Content-Type: video/mp4" \
-  --data-binary "@./path/to/video.mp4"
+  -H "Content-Type: image/jpeg" \
+  --data-binary "@./path/to/image.jpg"
 ```
 
 ### Important Notes
 
-- The upload must match the `contentType` and `size` specified in Step 1.
-- Uploading to S3 **does not** count as an API call.
-- Uploading to S3 does **not** consume Mutation or Query quotas.
-- Uploading to S3 does **not** consume credits.
+- The upload must match the `contentType` and `sizeBytes` specified in Step 1.
+- Upload URLs are temporary and intended for a single upload.
+- Uploading to S3 **does not** count as an API call and does **not** consume credits.
+- A successful upload returns HTTP `200 OK`.
+
+## Step 3 — Finalize the Job
+
+After all files have been uploaded successfully, call the finalize endpoint to queue the job for processing:
+
+```bash
+curl -X POST "https://platform.authenta.ai/api/v1/jobs/3140/finalize" \
+  -H "Authorization: Bearer api_xxxxxxxx..."
+```
+
+### Example Response
+
+```json
+{
+  "jobId": 3140,
+  "taskTypeId": 1,
+  "status": "queued",
+  "queuedAt": "2026-06-14T18:02:10.000Z",
+  "updatedAt": "2026-06-14T18:02:10.000Z",
+  "message": "Job successfully queued for processing"
+}
+```
+
+### Why Finalization Is Required
+
+Without finalization:
+
+- Processing will not start
+- Results will not be generated
+- The job remains in `waiting_for_finalize` state
 
 ## When Does Processing Start?
 
-After the file is uploaded to the pre-signed S3 URL:
+After the job is finalized:
 
-1. S3 fires an internal event
-2. Authenta detects the upload
+1. The job is queued for processing
+2. Authenta's workers pick up the job
 3. Media processing begins
-4. The media record updates automatically
+4. The job status updates automatically as it progresses
 
 You can poll the status via:
 
 ```
-GET /media/{mid}
+GET /jobs/{jobId}
 ```
 
-Possible statuses include:
+Typical status values include:
 
-- `INITED`
-- `UPLOADED`
-- `PROCESSED`
+- `waiting_for_finalize`
+- `queued`
+- `processing`
+- `completed`
+- `failed`
+- `cancelled`
 
-# Fetching a Single Media Item
+# Fetching a Single Job
 
 ### Example
 
 ```bash
-curl -X GET "https://platform.authenta.ai/api/media/692f406f9f68d4b70080bb80" \
-  -H "Authorization: Bearer api__xxxxxxxx..."
+curl -X GET "https://platform.authenta.ai/api/v1/jobs/3140" \
+  -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
 > ✔ This request does not consume credits.
 
-# Deleting Media
+# Deleting a Job
 
 ```bash
-curl -X DELETE "https://platform.authenta.ai/api/media/692f406f9f68d4b70080bb80" \
-  -H "Authorization: Bearer api__xxxxxxxx..."
+curl -X DELETE "https://platform.authenta.ai/api/v1/jobs/3140" \
+  -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
 Notes:
 
 - It does **not** consume credits.
+- Jobs can only be deleted if they are not currently processing.
 - If your key lacks delete permission:
 
 ```
@@ -204,13 +257,25 @@ Authenta always returns JSON.
 
 ```json
 {
-  "mid": "692f406f9f68d4b70080bb80",
-  "name": "video_sample",
-  "type": "Video",
-  "status": "INITED",
-  "modelType": "DF-1",
-  "createdAt": "2025-12-02T19:39:27.525Z",
-  "uploadUrl": "https://authenta-storage.s3.us-east-1.amazonaws.com/users/692d5c1d0ac955973b9583fc/media/692f406f9f68d4b70080bb80/original.media?..."
+  "jobId": 3140,
+  "taskTypeId": 1,
+  "taskTypeSlug": "ai-image-detection",
+  "status": "completed",
+  "createdAt": "2026-06-14T18:01:53.402Z",
+  "updatedAt": "2026-06-14T18:03:10.000Z",
+  "completedAt": "2026-06-14T18:03:10.000Z",
+  "inputs": [
+    {
+      "slotName": "original",
+      "contentType": "image/jpeg",
+      "fileName": "image.jpg",
+      "sizeBytes": 414241
+    }
+  ],
+  "result": {
+    "confidence": 0.98,
+    "isAiGenerated": true
+  }
 }
 ```
 
@@ -218,19 +283,21 @@ Authenta always returns JSON.
 
 ```json
 {
-  "limit": 3,
-  "offset": 0,
-  "total": 1,
   "data": [
     {
-      "mid": "692f406f9f68d4b70080bb80",
-      "name": "video_sample",
-      "type": "Video",
-      "status": "INITED",
-      "modelType": "DF-1",
-      "createdAt": "2025-12-02T19:39:27.525Z"
+      "jobId": 3140,
+      "taskTypeId": 1,
+      "status": "completed",
+      "createdAt": "2026-06-14T18:01:53.402Z",
+      "updatedAt": "2026-06-14T18:03:10.000Z"
     }
-  ]
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 1,
+    "pages": 1
+  }
 }
 ```
 
@@ -285,17 +352,17 @@ Authenta returns structured error objects with a code, statusCode, and message.
 
 - `code`
 - `message`
-- `mid` (if applicable)
+- `jobId` (if applicable)
 
 # Best Practices for API Integrations
 
 ### ✔ Always validate your file before upload
 
-Match the `contentType` and `size` fields.
+Match the `fileName`, `contentType`, and `sizeBytes` fields exactly.
 
-### ✔ Poll media status after uploading
+### ✔ Poll job status after finalizing
 
-Use `GET /media/{mid}` to determine completion.
+Use `GET /jobs/{jobId}` to determine completion.
 
 ### ✔ Separate keys for separate environments
 
@@ -315,11 +382,11 @@ Check your remaining credits regularly via Settings → Billing to avoid interru
 
 # Summary
 
-- Use `POST /media` to create a record
+- Use `POST /jobs` to create a job and receive an `uploadUrl`
 - Upload the file to the **pre-signed S3 URL**
-- Poll `GET /media/{id}` for status
-- Media processing starts automatically after upload
-- Credits are consumed **only** when processing starts
+- Call `POST /jobs/{jobId}/finalize` to queue the job for processing
+- Poll `GET /jobs/{jobId}` for status and results
+- Credits are consumed **only** when processing starts (after finalize)
 - No limits on API calls — make unlimited requests
 - All errors use structured error responses
 
