@@ -48,7 +48,7 @@ The typical workflow is:
 All endpoints require:
 
 ```http
-Authorization: Bearer api_apikey_xxxxxxxx...
+Authorization: Bearer api_xxxxxxxx...
 ```
 
 See: [Authentication](/api/authentication)
@@ -86,7 +86,7 @@ POST /api/v1/jobs?taskTypeId=1
 
 ```bash
 curl -X POST "https://platform.authenta.ai/api/v1/jobs" \
-  -H "Authorization: Bearer api_apikey_xxxxxxxx..." \
+  -H "Authorization: Bearer api_xxxxxxxx..." \
   -H "Content-Type: application/json" \
   -d '{
     "inputs": [
@@ -170,7 +170,7 @@ No request body required. The endpoint uses the job ID from the URL path.
 
 ```bash
 curl -X POST "https://platform.authenta.ai/api/v1/jobs/469/finalize" \
-  -H "Authorization: Bearer api_apikey_xxxxxxxx..."
+  -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
 ## Response
@@ -227,7 +227,7 @@ Retrieves a paginated list of all jobs for the current tenant.
 
 ```bash
 curl -X GET "https://platform.authenta.ai/api/v1/jobs?page=1&limit=10" \
-  -H "Authorization: Bearer api_apikey_xxxxxxxx..."
+  -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
 ## Response
@@ -290,7 +290,7 @@ Retrieves detailed information about a specific job.
 
 ```bash
 curl -X GET "https://platform.authenta.ai/api/v1/jobs/469" \
-  -H "Authorization: Bearer api_apikey_xxxxxxxx..."
+  -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
 ## Response
@@ -366,7 +366,7 @@ No request body required.
 
 ```bash
 curl -X POST "https://platform.authenta.ai/api/v1/jobs/469/cancel" \
-  -H "Authorization: Bearer api_apikey_xxxxxxxx..."
+  -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
 ## Response
@@ -420,7 +420,7 @@ Deletes a job and its associated media files. Jobs can only be deleted if they a
 
 ```bash
 curl -X DELETE "https://platform.authenta.ai/api/v1/jobs/469" \
-  -H "Authorization: Bearer api_apikey_xxxxxxxx..."
+  -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
 ## Response
@@ -442,7 +442,7 @@ Returns HTTP 204 No Content on success (no response body).
 
 ```bash
 curl -X POST "https://platform.authenta.ai/api/v1/jobs" \
-  -H "Authorization: Bearer api_apikey_xxxxxxxx..." \
+  -H "Authorization: Bearer api_xxxxxxxx..." \
   -H "Content-Type: application/json" \
   -d '{
     "inputs": [
@@ -486,7 +486,7 @@ curl -X PUT "https://authenta-storage.s3.us-east-1.amazonaws.com/jobs/469/origin
 
 ```bash
 curl -X POST "https://platform.authenta.ai/api/v1/jobs/469/finalize" \
-  -H "Authorization: Bearer api_apikey_xxxxxxxx..."
+  -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
 **Response:**
