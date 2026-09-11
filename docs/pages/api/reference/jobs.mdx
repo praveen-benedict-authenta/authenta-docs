@@ -23,6 +23,29 @@ Authenta supports multiple AI detection task types. Each task type processes spe
 | `9` | `face-embedding` | Face Embedding | Generates face embedding vectors from images | JPEG, PNG | 600s |
 | `10` | `audio-splitter` | Audio Splitter | Splits audio into foreground and background tracks | MP3, WAV, M4A | 600s |
 | `11` | `ekyc-deepfake` | EKYC Deepfakes | Enhanced deepfake detection model for EKYC workflows | MP4, MOV, WebM | 600s |
+| `13` | `pdf-tampering-detection` | PDF Tampering Detection | Detects if a PDF document has been tampered or forged | PDF | 300s |
+
+## PDF Tampering Detection
+
+Task type `13` (`pdf-tampering-detection`) accepts **PDF files only** as input. The workflow is identical to other task types — create a job, upload the PDF to the pre-signed URL, then finalize. Use `contentType: "application/pdf"` and `slotName: "original"` when creating the job.
+
+```bash
+curl -X POST "https://platform.authenta.ai/api/v1/jobs?taskTypeId=13" \
+  -H "Authorization: Bearer api_xxxxxxxx..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "inputs": [
+      {
+        "contentType": "application/pdf",
+        "fileName": "document",
+        "sizeBytes": 204800,
+        "slotName": "original"
+      }
+    ]
+  }'
+```
+
+The result will include a `tamperingDetected` boolean and a `confidence` score indicating the likelihood of document forgery.
 
 # Overview
 
