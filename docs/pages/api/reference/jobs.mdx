@@ -30,7 +30,7 @@ Authenta supports multiple AI detection task types. Each task type processes spe
 Task type `13` (`pdf-tampering-detection`) accepts **PDF files only** as input. The workflow is identical to other task types — create a job, upload the PDF to the pre-signed URL, then finalize. Use `contentType: "application/pdf"` and `slotName: "original"` when creating the job.
 
 ```bash
-curl -X POST "https://platform.authenta.ai/api/v1/jobs?taskTypeId=13" \
+curl -X POST "https://platform.authenta.ai/api/v1/jobs" \
   -H "Authorization: Bearer api_xxxxxxxx..." \
   -H "Content-Type: application/json" \
   -d '{
@@ -41,11 +41,12 @@ curl -X POST "https://platform.authenta.ai/api/v1/jobs?taskTypeId=13" \
         "sizeBytes": 204800,
         "slotName": "original"
       }
-    ]
+    ],
+    "taskTypeId": "13"
   }'
 ```
 
-The result will include a `tamperingDetected` boolean and a `confidence` score indicating the likelihood of document forgery.
+The result fields depend on the selected task type.
 
 # Overview
 
@@ -87,6 +88,7 @@ Creates a new processing job and uploads media files to the specified input slot
 ```ts
 interface JobUploadRequest {
   inputs: InputSlot[];
+  taskTypeId: string;
 }
 
 interface InputSlot {
@@ -97,13 +99,7 @@ interface InputSlot {
 }
 ```
 
-## Request Parameters
-
-**Task Type ID** — Pass the task type ID as a query parameter or in the request path to specify which detection model to use.
-
-```
-POST /api/v1/jobs?taskTypeId=1
-```
+`taskTypeId` is required in the JSON body as a **string**. Do not send it as a query parameter or as a number.
 
 ### Example Request
 
@@ -119,7 +115,8 @@ curl -X POST "https://platform.authenta.ai/api/v1/jobs" \
         "sizeBytes": 637067,
         "slotName": "original"
       }
-    ]
+    ],
+    "taskTypeId": "1"
   }'
 ```
 
@@ -127,11 +124,10 @@ curl -X POST "https://platform.authenta.ai/api/v1/jobs" \
 
 ```ts
 interface JobUploadResponse {
-  jobId: number | string;
-  taskTypeId: number;
-  status: "created" | "waiting_for_finalize" | "queued" | "processing" | "completed" | "failed";
-  createdAt: string;
-  updatedAt: string;
+  job: {
+    id: string;
+    status: string;
+  };
   inputs: InputSlotResponse[];
 }
 
@@ -148,11 +144,10 @@ interface InputSlotResponse {
 
 ```json
 {
-  "jobId": 469,
-  "taskTypeId": 1,
-  "status": "waiting_for_finalize",
-  "createdAt": "2025-12-02T19:39:27.525Z",
-  "updatedAt": "2025-12-02T19:39:27.525Z",
+  "job": {
+    "id": "469",
+    "status": "initiated"
+  },
   "inputs": [
     {
       "slotName": "original",
@@ -320,16 +315,18 @@ curl -X GET "https://platform.authenta.ai/api/v1/jobs/469" \
 
 ```ts
 interface JobDetailResponse {
-  jobId: number | string;
-  taskTypeId: number;
-  taskTypeSlug: string;
-  status: "waiting_for_finalize" | "queued" | "processing" | "completed" | "failed" | "cancelled";
-  createdAt: string;
-  updatedAt: string;
-  completedAt?: string;
-  inputs: InputSlotResponse[];
-  result?: DetectionResult;
-  errorMessage?: string;
+  job: {
+    id: string;
+    status: string;
+  };
+  result?: ImageDetectionResult;
+}
+
+interface ImageDetectionResult {
+  isFake: boolean;
+  confidencePercent: number;
+  fakeConfidencePercent: number;
+  realConfidencePercent: number;
 }
 ```
 
@@ -337,28 +334,20 @@ interface JobDetailResponse {
 
 ```json
 {
-  "jobId": 469,
-  "taskTypeId": 1,
-  "taskTypeSlug": "ai-image-detection",
-  "status": "completed",
-  "createdAt": "2025-12-02T19:39:27.525Z",
-  "updatedAt": "2025-12-02T19:40:35.100Z",
-  "completedAt": "2025-12-02T19:40:35.100Z",
-  "inputs": [
-    {
-      "slotName": "original",
-      "contentType": "image/jpeg",
-      "fileName": "test_image",
-      "sizeBytes": 1048576
-    }
-  ],
+  "job": {
+    "id": "469",
+    "status": "completed"
+  },
   "result": {
-    "confidence": 0.98,
-    "isAiGenerated": true,
-    "analysisDetails": {...}
+    "isFake": true,
+    "confidencePercent": 98.0,
+    "fakeConfidencePercent": 98.0,
+    "realConfidencePercent": 2.0
   }
 }
 ```
+
+For image detection, `result` is a flat object. Use `fakeConfidencePercent` and `realConfidencePercent` as percentages; do not look for `confidence` or `isAiGenerated`. If your application needs a normalized confidence value between `0` and `1`, calculate `fakeConfidencePercent / 100`.
 
 ## Response Codes
 
@@ -396,11 +385,10 @@ curl -X POST "https://platform.authenta.ai/api/v1/jobs/469/cancel" \
 
 ```ts
 interface JobResponse {
-  jobId: number | string;
-  taskTypeId: number;
-  status: "cancelled";
-  updatedAt: string;
-  message: string;
+  job: {
+    id: string;
+    status: "cancelled";
+  };
 }
 ```
 
@@ -408,11 +396,10 @@ interface JobResponse {
 
 ```json
 {
-  "jobId": 469,
-  "taskTypeId": 1,
-  "status": "cancelled",
-  "updatedAt": "2025-12-02T19:40:00.000Z",
-  "message": "Job successfully cancelled"
+  "job": {
+    "id": "469",
+    "status": "cancelled"
+  }
 }
 ```
 
@@ -475,17 +462,18 @@ curl -X POST "https://platform.authenta.ai/api/v1/jobs" \
         "sizeBytes": 1048576,
         "slotName": "original"
       }
-    ]
+    ],
+    "taskTypeId": "1"
   }'
 ```
 
 **Response:**
 ```json
 {
-  "jobId": 469,
-  "taskTypeId": 1,
-  "status": "waiting_for_finalize",
-  "createdAt": "2025-12-02T19:39:27.525Z",
+  "job": {
+    "id": "469",
+    "status": "initiated"
+  },
   "inputs": [
     {
       "slotName": "original",
@@ -515,11 +503,10 @@ curl -X POST "https://platform.authenta.ai/api/v1/jobs/469/finalize" \
 **Response:**
 ```json
 {
-  "jobId": 469,
-  "taskTypeId": 1,
-  "status": "queued",
-  "queuedAt": "2025-12-02T19:39:35.100Z",
-  "message": "Job successfully queued for processing"
+  "job": {
+    "id": "469",
+    "status": "queued"
+  }
 }
 ```
 
