@@ -14,15 +14,7 @@ Before proceeding, ensure you have met all [prerequisites](/on-prem/prerequisite
 
 ## Installation Steps
 
-### 1. Prepare Environment
-
-```bash
-# Create required directories
-sudo mkdir -p /opt/authenta/data
-sudo chmod -R 775 /opt/authenta/data
-```
-
-### 2. Configure AWS Credentials
+### 1. Configure AWS Credentials
 
 ```bash
 # Configure AWS CLI for ECR access
@@ -33,7 +25,7 @@ aws configure set default.region us-east-1
 
 > Tip: Replace \<AWS_ACCESS_KEY\> and \<AWS_SECRET_ACCESS_KEY\> with the value provided by Authenta Support.
 
-> Note: Authenta provides its AWS Account ID and **read-only ECR credentials** privately to verified enterprise clients during onboarding. These credentials are required to pull container images from Authenta’s private registry. For credential delivery or renewal, please contact [Authenta Support](/on-prem/support).
+> Note: Authenta provides its AWS Account ID and **read-only ECR credentials** privately to verified enterprise clients during onboarding. These credentials are required to pull container images from Authenta's private registry. For credential delivery or renewal, please contact [Authenta Support](/on-prem/support).
 
 #### ✅ Verify AWS Login
 
@@ -55,54 +47,54 @@ Expected output:
 
 If this command returns valid account information, your AWS credentials are correctly set up.
 
-### 3. Download Authenta Deployment Artifacts
+### 2. Download Authenta Deployment Artifacts
 
-Authenta provides a public GitHub repository containing all deployment artifacts and the required Docker Compose configuration.
-
-Clone the repository:
+Clone the on-prem deployment repository:
 
 ```bash
-git clone https://github.com/praveen-benedict-authenta/authenta-docs.git
-```
-
-Move into the **artifacts** directory:
-
-```bash
-cd authenta-docs/artifacts
+git clone https://github.com/phospheneai/authenta-on-prem.git
+cd authenta-on-prem
 ```
 
 This folder contains:
 
-- `docker-compose.yml` — defines the required Authenta services (RabbitMQ, ML Task Runner, etc.)
-- `demo-webapp/` — a sample application to test model inference (optional)
-- Other deployment-related files and configurations.
+- `docker-compose.yml` — defines the required Authenta services (`postgres`, `api-server`, `ml-task-runner-gpu`)
+- `setup.sh` — logs in to Authenta's private ECR and pulls the current images
+- `shared/` — host directory mounted into `ml-task-runner-gpu` for local input/output file exchange
 
 ---
 
-### 4. Authenticate and Deploy Containers
-
-Authenticate to Authenta’s private ECR and start all services using Docker Compose.
+### 3. Authenticate and Pull Images
 
 ```bash
-# Authenticate to Authenta’s ECR
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <AUTHENTA_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
-
-# For GPU environment:
-docker compose --profile gpu up -d
-
-# For CPU-only environment:
-docker compose --profile cpu up -d
+sh setup.sh
 ```
 
-> **Important:**
-> Run the `docker compose up` command **inside the `artifacts` directory** where the official `docker-compose.yml` file is located.
-> Docker will automatically detect and use this compose file to launch the required services.
->
-> Once the containers are up, Authenta’s services (RabbitMQ and ML Task Runner) will start automatically and operate within your network.
+This logs in to Authenta's private ECR (using the AWS credentials configured in step 1) and pulls the images referenced in `docker-compose.yml`.
 
 ---
 
-### 5. Verify Deployment
+### 4. Start the Stack
+
+```bash
+docker compose up -d
+```
+
+> Once the containers are up, `postgres`, `api-server`, and `ml-task-runner-gpu` will start automatically. `ml-task-runner-gpu` registers itself with `api-server` on boot and begins polling for jobs.
+
+---
+
+### 5. Apply Database Migrations (first run only)
+
+The container images don't run migrations automatically. From the `authenta-api-server` source checkout, point Drizzle at the exposed Postgres port and run:
+
+```bash
+DATABASE_URL=postgres://authenta:authenta_dev_password@localhost:5432/authenta bun run db:migrate
+```
+
+---
+
+### 6. Verify Deployment
 
 Check the running containers:
 
@@ -112,42 +104,27 @@ docker compose ps
 
 You should see containers for:
 
-- `rabbitmq`
-- `ml-task-runner-cpu` **or** `ml-task-runner-gpu` (depending on configuration)
+- `postgres`
+- `api-server`
+- `ml-task-runner-gpu`
+
+Check that the API server is healthy and the worker registered successfully:
+
+```bash
+curl http://localhost:8080/api/v1/health
+docker compose logs -f ml-task-runner-gpu
+```
 
 Once these are active, Authenta On-Prem is deployed and ready to process inference jobs.
 
 > ✅ **At this stage, your service is live.**
-> You can begin publishing tasks to RabbitMQ — Authenta will automatically process them using the configured models.
-
----
-
-### 6. (Optional) Test with the Demo Web Application
-
-Authenta includes a demo web application that is bundled inside the Docker deployment.
-This application can be used to verify that:
-
-- RabbitMQ messaging is functioning
-
-- The ML task runner is processing jobs correctly
-
--  Results are returned through the pipeline
-
-Once the containers are running, the demo web interface will be available at:
-👉 **[http://localhost:3000](http://localhost:3000)**
-
-You can use the web interface to submit sample media and verify that RabbitMQ and the ML task runner are communicating properly.
+> You can begin creating jobs through the Authenta API Server — the ML Task Runner will automatically pick them up and process them with the configured models.
 
 ---
 
 ## Post-Installation
 
-1. Access the RabbitMQ management dashboard at:
-   👉 `http://localhost:15672`
-
-   - Username: `admin`
-   - Password: (refer to your configuration file)
-
+1. Change the default credentials before any use beyond local testing — at minimum `POSTGRES_PASSWORD`, `AUTH_JWT_SECRET`, `CRYPTO_ENCRYPTION_KEY`, and `WORKER_BOOTSTRAP_TOKEN` in `docker-compose.yml` (see [Configuration](/on-prem/configuration)).
 2. Once verified, you can **disable internet access** for full offline operation.
    Authenta continues to function without any external connectivity.
 

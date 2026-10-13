@@ -9,15 +9,15 @@ The **Authenta On-Prem Edition** is designed for enterprises and government agen
 It can be deployed entirely inside your infrastructure — operating **fully offline** once installed — ensuring that sensitive media never leaves your network.
 
 Authenta leverages deep neural models trained on large-scale datasets to identify manipulation patterns in both video and image files.  
-It integrates easily with your internal applications through **RabbitMQ** or a lightweight **REST adapter**.
+It integrates easily with your internal applications through the **Authenta API Server's REST endpoints** — create a job, upload the input, and retrieve the result.
 
 ## Key Features
 
 - 🔒 **Data Sovereignty** — All media files, results, and logs stay within your infrastructure.
 - 🧠 **AI-Based Detection** — Specialized models detect deepfakes, synthetic images, and forged regions.
-- ⚙️ **Flexible Deployment** — Delivered as Docker containers with support for CPU and GPU profiles.
+- ⚙️ **Container-Based Deployment** — Delivered as Docker containers; GPU-accelerated inference by default.
 - 🚫 **Offline Operation** — Requires internet only once for image pull; operates fully air-gapped afterward.
-- 🧩 **Modular Components** — RabbitMQ message broker, ML inference runner, and shared storage volume.
+- 🧩 **Modular Components** — PostgreSQL, the Authenta API Server, and the ML Task Runner, communicating over a private Docker network.
 - 📈 **Scalable by Design** — Deploy multiple inference containers for parallel job processing.
 - 🔐 **No Telemetry** — No external communication, tracking, or analytics.
 - 🧾 **Compliant** — Meets on-prem data isolation and enterprise security standards.
@@ -30,14 +30,14 @@ It integrates easily with your internal applications through **RabbitMQ** or a l
 | **AC-1** | Image      | Determines if an image was AI-generated or authentic.   | Stable |
 | **VF-1** | Image      | Detects if an video was AI-generated or authentic       | Beta   |
 
-Each model can be selected dynamically when publishing a task to RabbitMQ.  
+Each model is selected dynamically by the task type specified when creating a job through the Authenta API Server.
 All inference operations occur locally within your environment — no cloud calls or external processing are involved.
 
 ## Offline & Secure Operation
 
 Authenta’s architecture is designed for **air-gapped, high-security environments**:
 
-- All components (RabbitMQ, inference runner, shared storage) run locally as Docker services.
+- All components (PostgreSQL, the API server, and the inference runner) run locally as Docker services.
 - The system communicates only within your internal network.
 - No telemetry, logging, or model updates are sent externally.
 - Internet connectivity is required **only once** — to pull container images from Authenta’s private AWS ECR.

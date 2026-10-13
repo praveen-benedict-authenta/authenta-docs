@@ -2,81 +2,66 @@
 
 ## Overview
 
-Authenta On-Prem is built as a **modular, containerized system** that can run entirely within your organization's network.  
-All inference processing, task management, and result storage happen locally — ensuring full data confidentiality and compliance.
+Authenta On-Prem is built as a **modular, containerized system** that can run entirely within your organization's network.
+All inference processing, job orchestration, and result storage happen locally — ensuring full data confidentiality and compliance.
 
 At its core, Authenta consists of three primary components:
 
-1. **RabbitMQ** — Message broker that orchestrates inference jobs
-2. **ML Task Runner** — Python-based container that executes the AI model (CPU or GPU)
-3. **Shared Volume** — Host directory mounted into containers for input and output exchange
+1. **PostgreSQL** — Relational database that backs the API server: users, tenants, jobs, artifacts, billing, and the job queue itself
+2. **Authenta API Server** — Central backend that manages authentication, job lifecycle, artifact storage, and the worker fleet
+3. **ML Task Runner** — Python-based container that registers with the API server, polls for queued jobs, and executes the AI models (GPU-accelerated)
 
-These components communicate internally through a secure local Docker network.  
+These components communicate internally through a secure local Docker network.
 Once deployed, the system can run indefinitely in an **air-gapped (offline)** mode.
 
 ## Component Diagram
 
 ![Authenta System Architecture](/architecture.png)
 
+> The diagram above reflects the previous RabbitMQ-based topology and is scheduled for an update to show `postgres` → `api-server` → `ml-task-runner-gpu`.
+
 ## Component Details
 
-### 📨 RabbitMQ (Message Broker)
+### 🐘 PostgreSQL (Database & Job Queue)
 
-- Acts as the central hub for task dispatch and result collection
-- Exposes a single queue (default: `task_queue`)
-- Used by internal or external applications to publish jobs and receive inference results
-- Includes a management dashboard at `http://localhost:15672` for monitoring queues and message flow
+- Single data store for relational data, sessions, and the job queue — no Redis or message broker required
+- The job queue uses `SELECT FOR UPDATE SKIP LOCKED` so multiple workers can claim jobs concurrently without a dedicated broker
+- Runs as the `postgres` service; data persists in a named Docker volume (`postgres-data`) across restarts
+
+### 🌐 Authenta API Server (Orchestration Service)
+
+- NestJS backend that handles auth (JWT + worker tokens), tenants, task types, billing, and the job/artifact lifecycle
+- Accepts job creation and file uploads from client applications
+- Exposes the worker fleet API — registration, job leasing, and completion reporting — consumed by the ML Task Runner
+- Runs as the `api-server` service, listening on port `8080`
 
 ### 🧠 ML Task Runner (Inference Service)
 
 - Containerized Python service that loads Authenta's trained models
-- Processes incoming jobs from RabbitMQ and executes the appropriate detection model
-- Available in two profiles:
-  - **ml-task-runner-gpu** — optimized for NVIDIA GPU acceleration (default)
-  - **ml-task-runner-cpu** — for CPU-only systems
+- On startup, registers itself with the API server using a shared bootstrap token, then polls for queued jobs over HTTP (register → lease → process → complete)
+- Runs as the `ml-task-runner-gpu` service, optimized for NVIDIA GPU acceleration
 - Writes inference outputs and logs to the shared host directory
-- Scalable: multiple task runner containers can be deployed for parallel job handling
+- Scalable: multiple task runner containers can be deployed for parallel job handling (see [Scaling](#scalability) below for an important caveat)
 
 ### 📂 Shared Host Volume
 
-- Mounted as a local directory on the host system (e.g., `/opt/authenta/data`)
-- Used for:
-  - Uploading media files for analysis
-  - Storing model inference results and logs
-- The ML task runner reads from and writes to this volume directly
-- Ensures all content stays within your environment with no external storage dependency
+- Mounted as a local directory on the host system (e.g., `./shared` → `/app/shared`)
+- Used for local input/output file exchange with the ML Task Runner when jobs reference on-disk paths (`FILE_URI_PREFIX`)
+- Ensures content stays within your environment with no external storage dependency
 
 ## Internal Communication
 
-- All services communicate over an internal **Docker network**
-- RabbitMQ and ML Task Runner exchange messages securely without leaving the host
-- No ports are exposed externally unless explicitly configured (except for RabbitMQ dashboard if enabled)
+- All services communicate over an internal **Docker network**, addressed by service name (`postgres`, `api-server`)
+- The ML Task Runner talks to the API server over plain HTTP within the Docker network (`http://api-server:8080`)
+- Only the ports you explicitly publish are reachable from outside the host — currently `api-server` (`8080`) and `postgres` (`5432`, useful for running migrations from the host)
 - You can further isolate services using your own network namespace or container firewall rules
-
-## CPU vs GPU Profiles
-
-| Profile | Service Name         | Description                                                              | Requirements                      |
-| ------- | -------------------- | ------------------------------------------------------------------------ | --------------------------------- |
-| **GPU** | `ml-task-runner-gpu` | Default profile leveraging NVIDIA CUDA acceleration for faster inference | NVIDIA driver + Container Toolkit |
-| **CPU** | `ml-task-runner-cpu` | Compatible profile for systems without GPUs                              | Docker only                       |
-
-Both profiles are defined in the provided `docker-compose.yml` file.
-You can start either profile as needed:
-
-```bash
-# Start GPU profile (recommended)
-docker compose --profile gpu up -d
-
-# Start CPU profile (fallback)
-docker compose --profile cpu up -d
-```
 
 ## Offline Operation
 
-After the initial image pull from Authenta's private AWS ECR, all components can run offline:
+After the initial image pull from Authenta's private AWS ECR (and the public `postgres` image), all components can run offline:
 
 - No outbound API calls or telemetry
-- No internet connection required for inference or logging
+- No internet connection required for inference, job orchestration, or logging
 - Optional network hardening:
   - Block all outbound traffic
   - Allow only internal container-to-container communication
@@ -85,31 +70,29 @@ This ensures complete data isolation and compliance for secure or regulated envi
 
 ## High-Level Data Flow
 
-1. A client application publishes a JSON message (task) to the RabbitMQ queue
-2. The ML Task Runner consumes the message and retrieves the referenced input file from the shared directory
-3. The model performs inference (deepfake, AI-generated, or forgery detection)
-4. The resulting metadata and detection scores are written back to the shared volume
-5. The result is optionally sent back to the client application through RabbitMQ or HTTP callback
+1. A client application creates a job and uploads the input file through the Authenta API Server
+2. The job is queued in PostgreSQL (`status = queued`)
+3. The ML Task Runner registers with the API server (bootstrap token) and continuously polls the lease endpoint
+4. When a job is available, the worker leases it, resolves the input (local file path or downloaded artifact) into its job workspace, and runs the appropriate detection model
+5. The resulting metadata, detection scores, and any output artifacts are reported back to the API server via the completion endpoint
+6. The API server persists the result; clients retrieve it through the job/artifact API
 
 ## Scalability
 
-Authenta supports horizontal scaling out of the box.
-You can deploy multiple ml-task-runner containers — RabbitMQ will automatically distribute jobs among available consumers.
-
-Example:
+You can deploy multiple ML Task Runner containers to increase throughput; each instance registers independently and polls for its own jobs.
 
 ```bash
 docker compose up -d --scale ml-task-runner-gpu=3
 ```
 
-Each container instance processes tasks independently, enabling higher throughput for batch or real-time use cases.
+> ⚠️ **Important:** `WORKER_INSTANCE_ID` must be unique per running instance. The API server treats `instanceId` as the worker's stable identity — re-registering with an ID that's already in use deletes the existing worker record (and releases its in-flight job back to the queue). Scaling with a single static `WORKER_INSTANCE_ID` shared across replicas will cause them to continuously evict one another. Give each replica its own ID (e.g., derive it from the container hostname, or override `WORKER_INSTANCE_ID` per replica) before scaling beyond one instance.
 
 ## Summary
 
-| Aspect          | Description                                     |
-| --------------- | ----------------------------------------------- |
-| Deployment Type | Docker Compose (CPU or GPU)                     |
-| Core Services   | RabbitMQ, ML Task Runner, Shared Volume         |
-| Data Flow       | Queue-based message dispatch and local file I/O |
-| Scalability     | Multi-instance ready                            |
-| Security        | Offline, isolated, no external dependencies     |
+| Aspect          | Description                                              |
+| ---------------- | --------------------------------------------------------- |
+| Deployment Type | Docker Compose                                            |
+| Core Services   | PostgreSQL, Authenta API Server, ML Task Runner            |
+| Data Flow       | HTTP-based job register/lease/complete + local file I/O   |
+| Scalability     | Multi-instance ready (unique `WORKER_INSTANCE_ID` per replica required) |
+| Security        | Offline-capable, isolated, no external dependencies once deployed |

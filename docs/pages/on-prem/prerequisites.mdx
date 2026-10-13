@@ -7,15 +7,15 @@ These requirements are designed to guarantee stable performance, successful imag
 
 ## 1. System Requirements
 
-Authenta supports both **CPU** and **GPU** environments.  
-Hardware specifications vary based on the volume of media processed and desired inference speed.
+The current on-prem deployment ships `ml-task-runner-gpu`, which requires an NVIDIA GPU — there is no CPU-only worker service in the default `docker-compose.yml`.  
+Hardware specifications otherwise vary based on the volume of media processed and desired inference speed.
 
 ### ✅ Minimum Recommended Hardware
 
 | Component          | Requirement                                    | Notes                                              |
 | ------------------ | ---------------------------------------------- | -------------------------------------------------- |
-| **CPU**            | 8-core Intel Xeon / AMD EPYC (or higher)       | Required for CPU-only inference                    |
-| **GPU (optional)** | NVIDIA GPU with ≥8GB VRAM (Tesla / RTX series) | Required for GPU-accelerated mode                  |
+| **CPU**            | 8-core Intel Xeon / AMD EPYC (or higher)       | Runs `postgres` and `api-server`                   |
+| **GPU (required)** | NVIDIA GPU with ≥8GB VRAM (Tesla / RTX series) | Required by `ml-task-runner-gpu`                   |
 | **Memory (RAM)**   | 16 GB minimum (32 GB recommended)              | For concurrent processing and caching              |
 | **Storage**        | 100 GB free disk space                         | For Docker images, logs, and temporary media files |
 | **Network**        | Temporary internet access                      | Only required once to pull images from AWS ECR     |
@@ -33,7 +33,7 @@ Ensure the following software is installed on your host system:
 | **Docker Engine (v20.10 or newer)** | Runs all Authenta containers.                          | [Install Docker Engine →](https://docs.docker.com/engine/install/)                                    |
 | **Docker Compose (v2.5 or newer)**  | Orchestrates Authenta services.                        | [Install Docker Compose →](https://docs.docker.com/compose/install/)                                  |
 | **AWS CLI (v2 or newer)**           | Required for authentication to Authenta’s private ECR. | [Install AWS CLI v2 →](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) |
-| **Node.js (v16+ optional)**         | Runs the sample demo application.                      | [Node.js Downloads →](https://nodejs.org/en/download/)                                                |
+| **Bun (optional)**                  | Required only to run database migrations from the `authenta-api-server` source checkout. | [Bun Downloads →](https://bun.sh) |
 
 > ⚙️ Verify your installations:
 >
@@ -45,9 +45,9 @@ Ensure the following software is installed on your host system:
 
 ---
 
-## 3. GPU Environment (Optional)
+## 3. GPU Environment (Required)
 
-If you plan to use GPU acceleration (`ml-task-runner-gpu` profile), you must install and configure the **NVIDIA Container Toolkit** and related drivers.
+Since the default `ml-task-runner-gpu` service requires GPU acceleration, you must install and configure the **NVIDIA Container Toolkit** and related drivers.
 
 ### Required Components
 
@@ -77,25 +77,25 @@ Authenta operates fully offline after setup, but you'll need limited internet ac
 | ------------------------ | ------------------------------------------------------------------------ |
 | Outbound Internet Access | Needed only once to pull container images. Can be disabled afterward     |
 | AWS ECR Credentials      | Provided by Authenta. Used for secure login and image pull               |
-| Ports                    | Internal communication only (RabbitMQ: 5672 / 15672 for dashboard)       |
+| Ports                    | `api-server` (8080) and `postgres` (5432) are exposed by default — restrict or drop these mappings if not needed externally |
 | Firewall Rules           | Allow local container-to-container communication over the Docker network |
 
 ⚠️ After installation, you may safely disable outbound internet and lock down ports for air-gapped operation.
 
 ## 5. File System & Storage Setup
 
-Authenta requires a shared host directory that is mounted into containers for data exchange.
+Authenta requires a shared host directory that is mounted into the ML Task Runner for local file exchange, plus disk space for the PostgreSQL data volume.
 
-| Path                 | Purpose                                            |
-| -------------------- | -------------------------------------------------- |
-| `/opt/authenta/data` | Stores input files and inference outputs           |
-| `/opt/authenta/logs` | (Optional) Capture logs for auditing or monitoring |
+| Path                                        | Purpose                                             |
+| ---------------------------------------------- | -------------------------------------------------------- |
+| `./shared` (relative to the compose file)   | Mounted into `ml-task-runner-gpu`; input/output file exchange |
+| `postgres-data` (named Docker volume)       | PostgreSQL data directory — persists across restarts     |
 
 Ensure that:
 
-- The directory exists before starting the containers
-- Proper permissions are assigned (e.g., `chmod -R 775 /opt/authenta/data`)
-- Sufficient disk space is available for temporary media storage
+- The `shared` directory exists before starting the containers (`docker compose up` creates it automatically if missing, but pre-creating it lets you set permissions up front)
+- Proper permissions are assigned (e.g., `chmod -R 775 ./shared`)
+- Sufficient disk space is available for temporary media storage and the Postgres volume
 
 ## 6. Access Permissions
 
@@ -112,7 +112,7 @@ While not mandatory, the following tools are useful during setup or testing:
 
 | Tool                       | Purpose                                     |
 | -------------------------- | ------------------------------------------- |
-| Postman / curl             | Test message publishing to RabbitMQ or APIs |
+| Postman / curl             | Test job creation and uploads against the Authenta API Server |
 | Docker Desktop / Portainer | Visual management of containers and logs    |
 | jq                         | JSON parsing utility for log inspection     |
 
@@ -121,7 +121,7 @@ While not mandatory, the following tools are useful during setup or testing:
 | Category       | Requirement                                             |
 | -------------- | ------------------------------------------------------- |
 | Hardware       | 8-core CPU, 16–32 GB RAM, 100 GB storage                |
-| GPU (optional) | NVIDIA GPU with drivers + container toolkit             |
+| GPU (required) | NVIDIA GPU with drivers + container toolkit             |
 | Software       | Docker, Docker Compose, AWS CLI                         |
 | Network        | One-time internet access for ECR image pull             |
 | Permissions    | Docker group membership + directory access              |

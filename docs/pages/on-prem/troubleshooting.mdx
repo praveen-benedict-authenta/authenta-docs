@@ -2,8 +2,8 @@
 
 ## Overview
 
-This page provides solutions to the most common issues you may encounter while deploying or operating **Authenta On-Prem**.  
-It covers installation, container runtime, RabbitMQ configuration, GPU setup, and update-related problems.
+This page provides solutions to the most common issues you may encounter while deploying or operating **Authenta On-Prem**.
+It covers installation, container runtime, database, API server, worker registration, GPU setup, and update-related problems.
 
 All issues can be diagnosed locally — no external internet or cloud dependencies are required.
 
@@ -11,13 +11,14 @@ All issues can be diagnosed locally — no external internet or cloud dependenci
 
 Before diving into specific problems, verify the following:
 
-| Check                  | Command                        | Expected Output                             |
-| ---------------------- | ------------------------------ | ------------------------------------------- |
-| Docker running         | `systemctl status docker`      | Status: **active (running)**                |
-| Containers active      | `docker ps`                    | RabbitMQ + ML task runner containers listed |
-| Disk space             | `df -h`                        | Sufficient free space (≥20 GB)              |
-| Shared volume exists   | `ls /opt/authenta/data`        | Directory accessible                        |
-| RabbitMQ UI accessible | Visit `http://localhost:15672` | Dashboard loads successfully                |
+| Check                    | Command                                             | Expected Output                                |
+| --------------------------- | ------------------------------------------------------ | -------------------------------------------------- |
+| Docker running             | `systemctl status docker`                             | Status: **active (running)**                     |
+| Containers active           | `docker compose ps`                                    | `postgres`, `api-server`, `ml-task-runner-gpu` all `Up` |
+| Disk space                 | `df -h`                                                | Sufficient free space (≥20 GB)                    |
+| Shared volume exists        | `ls ./shared`                                           | Directory accessible                              |
+| API server healthy          | `curl http://localhost:8080/api/v1/health/ready`       | `200 OK`                                          |
+| Worker registered           | `docker compose logs ml-task-runner-gpu \| grep "Worker registered"` | Log line present                        |
 
 If all checks pass but the issue persists, refer to the sections below.
 
@@ -36,7 +37,7 @@ docker compose up -d
 
 - Invalid Docker Compose syntax
 - Missing shared volume directories
-- Port conflicts with other services
+- Port conflicts with other services (`5432`, `8080`)
 
 **Resolution:**
 
@@ -49,14 +50,14 @@ docker compose config
 2. Ensure directories exist:
 
 ```bash
-sudo mkdir -p /opt/authenta/data /opt/authenta/logs
+mkdir -p ./shared ./demo-app/data
 ```
 
 3. Check port usage:
 
 ```bash
-sudo lsof -i :5672
-sudo lsof -i :15672
+sudo lsof -i :5432
+sudo lsof -i :8080
 ```
 
 ### ⚙️ Containers Exit Immediately
@@ -64,21 +65,22 @@ sudo lsof -i :15672
 **Symptom:**
 
 ```bash
-docker ps -a
-# shows ml-task-runner exited with code 1
+docker compose ps -a
+# shows api-server or ml-task-runner-gpu exited
 ```
 
 **Resolution:**
 View logs for details:
 
 ```bash
-docker logs ml-task-runner-gpu
+docker compose logs api-server
+docker compose logs ml-task-runner-gpu
 ```
 
 Common causes:
 
-- Missing environment variables
-- Incorrect data directory mapping
+- `api-server` missing a required production secret (`AUTH_JWT_SECRET`, `CRYPTO_ENCRYPTION_KEY`, `DATABASE_URL`, `WORKER_BOOTSTRAP_TOKEN`, `DOMAIN`) — it exits on boot if any of these aren't set
+- `ml-task-runner-gpu` has no valid listener configured — it requires `AUTHENTA_API_URL` (or `FILE_TASK_DIR`/`RABBITMQ_URL`/`SQS_QUEUE_URL`) to be set, otherwise it exits with `No listener configured`
 - Corrupted Docker image
 
 Try:
@@ -89,99 +91,106 @@ docker compose pull
 docker compose up -d
 ```
 
-## 3. RabbitMQ Connectivity Issues
+## 3. Database & API Server Issues
 
-### 🧩 RabbitMQ Not Reachable
+### 🐘 API Server Can't Reach Postgres
 
 **Symptom:**
-Client app cannot connect to RabbitMQ (ECONNREFUSED or Connection reset).
+`api-server` logs show connection errors, or `curl http://localhost:8080/api/v1/health/ready` returns non-200.
 
 **Possible Causes:**
 
-- RabbitMQ container not running
-- Wrong hostname or credentials
-- Port 5672 blocked by firewall
+- `postgres` container not healthy yet when `api-server` started
+- `DATABASE_URL` doesn't match `postgres`'s configured user/password/db
 
 **Resolution:**
 
-1. Verify container status:
+1. Verify Postgres is accepting connections:
 
 ```bash
-docker ps | grep rabbitmq
+docker compose exec postgres pg_isready -U authenta
 ```
 
-2. Access dashboard:
+2. Confirm `DATABASE_URL` on `api-server` matches `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` on `postgres` in `docker-compose.yml`
 
-```
-http://localhost:15672
-```
-
-3. Check credentials in `.env`:
+3. Restart in dependency order:
 
 ```bash
-RABBITMQ_USER=user
-RABBITMQ_PASS=pass
+docker compose up -d postgres
+docker compose up -d api-server
 ```
 
-4. Test AMQP connection:
-
-```bash
-telnet localhost 5672
-```
-
-5. If needed, restart RabbitMQ:
-
-```bash
-docker compose restart rabbitmq
-```
-
-### 🚫 Queue Missing or Jobs Not Processed
+### 🔑 `api-server` Exits with "Environment Variable ... not set"
 
 **Symptom:**
-Tasks published, but not consumed by the ML task runner.
+`api-server` logs a config error and exits immediately.
+
+**Resolution:**
+The API server runs with `NODE_ENV=production`, which requires several secrets to be set explicitly (no fallback to defaults): `DOMAIN`, `DATABASE_URL`, `AUTH_JWT_SECRET`, `WORKER_BOOTSTRAP_TOKEN`, `CRYPTO_ENCRYPTION_KEY`. Check the error message for the specific key and set it in `docker-compose.yml` under `api-server`'s `environment:` block — see [Configuration](/on-prem/configuration).
+
+## 4. Worker Registration Issues
+
+### 🚫 Worker Not Registering
+
+**Symptom:**
+`docker compose logs ml-task-runner-gpu` never shows `Worker registered`, or shows `Worker registration failed`.
+
+**Possible Causes:**
+
+- `WORKER_BOOTSTRAP_TOKEN` doesn't match between `api-server` and `ml-task-runner-gpu`
+- `AUTHENTA_API_URL` unreachable (`api-server` not up yet, or wrong hostname)
+- `AUTHENTA_API_URL` not set at all — the worker silently falls back to looking for `RABBITMQ_URL`/`SQS_QUEUE_URL`, and exits with `No listener configured` if none are set
 
 **Resolution:**
 
-1. Open the RabbitMQ dashboard → Queues tab
-2. Verify that a queue named `task_queue` exists
-3. If missing, create it manually:
+1. Confirm both services reference the same bootstrap token in `docker-compose.yml`
+2. Confirm `api-server` is reachable from the worker container:
 
 ```bash
-docker exec -it rabbitmq rabbitmqadmin declare queue name=task_queue durable=true
+docker compose exec ml-task-runner-gpu curl -i http://api-server:8080/api/v1/health
 ```
 
-4. Confirm the task runner is subscribed (should show as 1 consumer)
-5. Restart if needed:
+3. Restart the worker after fixing config:
 
 ```bash
-docker compose down && docker compose up -d
+docker compose restart ml-task-runner-gpu
 ```
 
-## 4. ML Task Runner & Model Issues
+### 📭 Jobs Not Processed / Stuck in `queued`
+
+**Symptom:**
+Jobs created via the API never leave `queued`.
+
+**Resolution:**
+
+1. Confirm at least one worker is registered and not stale:
+
+```bash
+curl http://localhost:8080/api/v1/workers -H "Authorization: Bearer <operator-token>"
+```
+
+2. Check the worker's poll loop is running (should log a lease attempt roughly every `WORKER_POLL_INTERVAL` seconds)
+3. Restart if needed:
+
+```bash
+docker compose restart ml-task-runner-gpu
+```
+
+## 5. ML Task Runner & Model Issues
 
 ### 🧠 Model Not Loading
 
 **Symptom:**
-Logs show:
-
-```json
-{ "level": "error", "msg": "Model DF-1 not found" }
-```
+Logs show an error resolving a task type's model directory.
 
 **Resolution:**
 
-1. Confirm image tag is correct (v1-gpu or v1-cpu)
-2. Re-pull container images:
+1. Confirm the task type's slug is included in `WORKER_CAPABILITIES`
+2. Re-pull the image and restart:
 
 ```bash
-docker compose pull
-docker compose up -d
-```
-
-3. Ensure correct profile:
-
-```bash
-docker compose --profile gpu up -d
+docker compose pull ml-task-runner-gpu
+docker compose up -d ml-task-runner-gpu
 ```
 
 ### ⚡ GPU Not Detected
@@ -190,7 +199,7 @@ docker compose --profile gpu up -d
 Logs show:
 
 ```json
-{ "level": "warn", "msg": "No GPU available, switching to CPU" }
+{ "level": "warn", "msg": "No GPU available" }
 ```
 
 **Possible Causes:**
@@ -223,28 +232,23 @@ docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi
 4. Restart Authenta:
 
 ```bash
-docker compose down && docker compose --profile gpu up -d
+docker compose down && docker compose up -d
 ```
 
-## 5. Performance & Scaling Issues
+## 6. Performance & Scaling Issues
 
 ### 🐢 Inference Too Slow
 
 **Possible Causes:**
 
-- CPU mode running instead of GPU
+- GPU not actually being used (falling back to CPU)
 - Insufficient memory
-- Heavy concurrent load
+- Heavy concurrent load with only one worker instance
 
 **Fix:**
 
-1. Switch to GPU profile:
-
-```bash
-docker compose --profile gpu up -d
-```
-
-2. Increase task runners:
+1. Confirm GPU is in use (see previous section)
+2. Increase task runners — remember each replica needs a unique `WORKER_INSTANCE_ID` (see [scaling caveat](/on-prem/architecture#scalability)):
 
 ```bash
 docker compose up -d --scale ml-task-runner-gpu=3
@@ -256,22 +260,23 @@ docker compose up -d --scale ml-task-runner-gpu=3
 docker stats
 ```
 
-## 6. Logs & Debugging Commands
+## 7. Logs & Debugging Commands
 
 Useful commands for investigating issues:
 
-| Purpose               | Command                                        |
-| --------------------- | ---------------------------------------------- |
-| View all containers   | `docker ps`                                    |
-| View RabbitMQ logs    | `docker logs rabbitmq`                         |
-| View ML runner logs   | `docker logs ml-task-runner-gpu`               |
-| Inspect container     | `docker inspect <container_name>`              |
-| Check Docker network  | `docker network ls`                            |
-| Enter container shell | `docker exec -it ml-task-runner-gpu /bin/bash` |
-| Validate compose      | `docker compose config`                        |
-| Restart all services  | `docker compose restart`                       |
+| Purpose                | Command                                          |
+| ------------------------- | ---------------------------------------------------- |
+| View all containers      | `docker compose ps`                                  |
+| View API server logs      | `docker compose logs api-server`                     |
+| View ML runner logs       | `docker compose logs ml-task-runner-gpu`             |
+| View Postgres logs        | `docker compose logs postgres`                       |
+| Inspect container          | `docker inspect <container_name>`                    |
+| Check Docker network       | `docker network ls`                                  |
+| Enter container shell      | `docker compose exec ml-task-runner-gpu /bin/bash`   |
+| Validate compose           | `docker compose config`                              |
+| Restart all services       | `docker compose restart`                             |
 
-## 7. Contacting Support
+## 8. Contacting Support
 
 If your issue persists:
 
@@ -291,12 +296,13 @@ docker compose logs > authenta_support_logs.txt
 
 ## Summary
 
-| Issue Category          | Typical Cause                     | Resolution                 |
-| ----------------------- | --------------------------------- | -------------------------- |
-| Containers not starting | Missing volumes / ports in use    | Validate compose config    |
-| Queue not visible       | Misconfiguration or missing queue | Recreate via dashboard     |
-| Jobs not processed      | No active task runner             | Restart container          |
-| No result output        | Wrong volume mapping              | Fix path + permissions     |
-| GPU not detected        | Missing toolkit or driver         | Reinstall and restart      |
-| ECR auth fails          | Expired credentials               | Re-login and retry         |
-| Slow performance        | CPU mode or low resources         | Use GPU / scale containers |
+| Issue Category            | Typical Cause                              | Resolution                              |
+| --------------------------- | ---------------------------------------------- | -------------------------------------------- |
+| Containers not starting     | Missing volumes / ports in use                 | Validate compose config                     |
+| `api-server` exits on boot  | Missing production-required secret              | Set the secret named in the error message   |
+| Worker never registers      | `WORKER_BOOTSTRAP_TOKEN` mismatch or unreachable API | Align tokens, check network              |
+| Jobs stuck in `queued`      | No healthy registered worker                   | Check `/api/v1/workers`, restart worker      |
+| No result output            | Wrong volume/`FILE_URI_PREFIX` mapping         | Fix path + permissions                       |
+| GPU not detected            | Missing toolkit or driver                       | Reinstall and restart                        |
+| ECR auth fails               | Expired credentials                             | Re-login and retry                           |
+| Slow performance             | GPU not in use or too few workers               | Verify GPU, scale containers                 |
