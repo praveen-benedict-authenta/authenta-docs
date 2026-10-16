@@ -10,8 +10,8 @@ import { ApiExplorer } from '../../components/ApiExplorer'
 
 Try the Authenta API from your browser: authorize with your `api_...` key, then run the four steps in order. Downloadable spec: <a href="/openapi/authenta-api.yaml" download>authenta-api.yaml</a> (import it into Postman or any OpenAPI tool).
 
-:::warning
-Calls to `https://platform.authenta.ai` from this page are currently blocked by the browser ("Failed to fetch"). Until that's enabled, use the requests here as a reference and run them with curl or Postman, or pick the **On-prem / self-hosted** server if your deployment allows browser access.
+:::info
+Requests go from your browser straight to the selected server. On-prem servers allow this site by default; if yours sets `CORS_ORIGINS`, include `https://docs.authenta.ai` in it, or run the requests with curl or Postman.
 :::
 
 <ApiExplorer />

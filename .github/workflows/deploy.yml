@@ -1,12 +1,31 @@
-name: Deploy to GitHub Pages
+name: Deploy to S3
 
 on:
   workflow_dispatch:
 
+concurrency:
+  group: deploy-docs
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  # Outputs of authenta-infrastructure's live/prod/docs-site unit. The role only trusts runs on main.
+  DOCS_BUCKET: authenta-prod-docs
+  DOCS_DISTRIBUTION_ID: ${{ vars.DOCS_DISTRIBUTION_ID }}
+  DEPLOY_ROLE_ARN: arn:aws:iam::480007295971:role/authenta-docs-deploy
+
 jobs:
-  build:
-    name: Build
+  deploy:
+    name: Build and deploy
     runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    environment:
+      name: production
+      url: https://docs.authenta.ai
 
     steps:
       - name: Checkout repository
@@ -25,27 +44,27 @@ jobs:
       - name: Build the application
         run: |
           bun install --frozen-lockfile
+          bun run lint
           npm run build
 
-      - name: Upload production-ready artifact
-        uses: actions/upload-pages-artifact@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          path: ./docs/dist
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-  deploy:
-    name: Deploy
-    runs-on: ubuntu-latest
-    needs: build
+      # Fingerprinted bundles first, so pages never reference assets that aren't there yet.
+      - name: Upload assets
+        run: aws s3 sync docs/dist/assets "s3://$DOCS_BUCKET/assets" --cache-control "public, max-age=31536000, immutable"
 
-    permissions:
-      pages: write
-      id-token: write
+      # Pages, spec, Postman collection, images: always revalidated so a deploy shows up immediately.
+      - name: Upload pages and public files
+        run: aws s3 sync docs/dist "s3://$DOCS_BUCKET" --exclude "assets/*" --delete --cache-control "public, max-age=0, must-revalidate"
 
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      # Old bundles go only after the pages referencing them are replaced.
+      - name: Remove stale assets
+        run: aws s3 sync docs/dist/assets "s3://$DOCS_BUCKET/assets" --delete --cache-control "public, max-age=31536000, immutable"
 
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      # Pages already revalidate on every request; this clears cached error pages and edge copies from older deploys.
+      - name: Invalidate CloudFront cache
+        run: aws cloudfront create-invalidation --distribution-id "$DOCS_DISTRIBUTION_ID" --paths "/*"

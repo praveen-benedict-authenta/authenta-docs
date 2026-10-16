@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vocs dev -p 3000",
     "build": "vocs build",
-    "preview": "vocs preview"
+    "preview": "vocs preview",
+    "lint": "node scripts/lint-line-endings.mjs"
   },
   "dependencies": {
     "react": "^19.2.4",
