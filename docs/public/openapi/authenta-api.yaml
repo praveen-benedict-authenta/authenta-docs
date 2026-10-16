@@ -1,0 +1,538 @@
+openapi: 3.0.3
+info:
+  title: Authenta API
+  version: 1.0.0
+  description: |
+    Run a detection job in four calls: **create job → upload file → finalize → get the result**.
+
+    Click **Authorize** and paste your `api_...` API key (without the `Bearer ` prefix).
+    Full reference: [Jobs API](/api/reference/jobs).
+
+    ### Auto-fill between steps
+    On this page, a successful **Step 1** is remembered: **Step 2** uploads straight to the returned
+    `uploadUrl` with the right `Content-Type` (just choose the file), and **Steps 3–4** accept `last`
+    as the job ID. The bar above shows what is remembered and how long the upload URL is still valid.
+
+    ### Step 2 rules
+    - The file must be exactly the `sizeBytes` declared in Step 1, with the same `contentType`.
+    - Upload URLs expire quickly (30 seconds for small files) — upload right after Step 1.
+
+servers:
+  - url: https://platform.authenta.ai/api/v1
+    description: Authenta cloud
+  - url: '{scheme}://{host}/api/v1'
+    description: On-prem / self-hosted
+    variables:
+      scheme:
+        enum: [https, http]
+        default: https
+      host:
+        default: authenta.example.internal
+        description: Your Authenta server's host (and port, if not the default)
+
+tags:
+  - name: Upload workflow
+    description: Steps 1–4, in order.
+  - name: Jobs
+    description: List, cancel and delete jobs.
+
+components:
+  securitySchemes:
+    ApiKey:
+      type: http
+      scheme: bearer
+      description: Your `api_...` API key.
+
+  schemas:
+    InputUpload:
+      type: object
+      required: [slotName, fileName, contentType, sizeBytes]
+      properties:
+        slotName:
+          type: string
+          example: original
+          description: Input slot name. `original` for every current task type.
+        fileName:
+          type: string
+          example: photo.jpg
+        contentType:
+          type: string
+          example: image/jpeg
+          description: MIME type accepted by the task type. Step 2 must send it unchanged as `Content-Type`.
+        sizeBytes:
+          type: integer
+          minimum: 1
+          example: 414241
+          description: Exact file size in bytes. The Step 2 upload must match it.
+        pageCount:
+          type: integer
+          minimum: 1
+          example: 3
+          description: PDF page count. Required for `pdf-tampering-detection`.
+
+    CreateJobBody:
+      type: object
+      required: [taskTypeId, inputs]
+      properties:
+        taskTypeId:
+          type: string
+          example: "1"
+          description: Task type ID — see the [task types table](/api/reference/jobs#task-types).
+        inputs:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/InputUpload'
+        parameters:
+          type: object
+          description: Only for the face-intelligence task type.
+          properties:
+            isFaceswapCheck:
+              type: boolean
+            isLivenessCheck:
+              type: boolean
+            isSimilarityCheck:
+              type: boolean
+
+    JobStatus:
+      type: string
+      enum: [initiated, queued, processing, completed, failed, cancelled]
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "3140"
+        tenantId:
+          type: string
+          format: uuid
+        taskTypeId:
+          type: string
+          example: "1"
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        cost:
+          type: integer
+          example: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        result:
+          type: object
+          nullable: true
+          description: Set once `status` is `completed` (or describes the failure when `failed`). Shape depends on the task type.
+          anyOf:
+            - title: Fake detection (image / audio / video)
+              type: object
+              properties:
+                isFake:
+                  type: boolean
+                confidence:
+                  type: number
+            - title: Forgery detection
+              type: object
+              properties:
+                isTampered:
+                  type: boolean
+                confidence:
+                  type: number
+            - title: Face-swap detection
+              type: object
+              properties:
+                isDeepfake:
+                  type: boolean
+                totalFaces:
+                  type: integer
+                deepfakeFaces:
+                  type: integer
+
+    UploadTarget:
+      type: object
+      properties:
+        slotName:
+          type: string
+          example: original
+        uploadUrl:
+          type: string
+          description: Pre-signed storage URL. PUT the file here (Step 2).
+        uploadUrlExpiresAt:
+          type: string
+          format: date-time
+
+    CreateJobResponse:
+      type: object
+      properties:
+        job:
+          $ref: '#/components/schemas/Job'
+        inputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/UploadTarget'
+
+    Artifact:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [input, result, heatmap, image, report, mask, audio]
+        slotName:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, completed]
+        contentType:
+          type: string
+        metadata:
+          type: object
+          nullable: true
+          additionalProperties: true
+        downloadUrl:
+          type: string
+          nullable: true
+          description: Signed download URL (about 15 minutes); `null` while pending.
+        createdAt:
+          type: string
+          format: date-time
+
+    JobDetail:
+      allOf:
+        - $ref: '#/components/schemas/Job'
+        - type: object
+          properties:
+            artifacts:
+              type: array
+              items:
+                $ref: '#/components/schemas/Artifact'
+
+    JobList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Job'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        rid:
+          type: string
+          description: Request ID — include it when contacting support.
+        name:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              msg:
+                type: string
+
+  parameters:
+    JobId:
+      name: id
+      in: path
+      required: true
+      description: Job ID from Step 1. On this page, `last` means the job created by the most recent Step 1.
+      schema:
+        type: string
+        example: last
+
+  responses:
+    Unauthorized:
+      description: "`UNAUTHENTICATED` (no key) or `INVALID_API_KEY` (revoked, expired or unknown key)."
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    JobNotFound:
+      description: "`JOB_NOT_FOUND` — no such job in your account, or it was deleted."
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+security:
+  - ApiKey: []
+
+paths:
+  /jobs:
+    post:
+      tags: [Upload workflow]
+      summary: Step 1 — Create a job
+      description: Send the file's metadata. The response holds the job `id` and one `uploadUrl` per input.
+      operationId: createJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateJobBody'
+            example:
+              taskTypeId: "1"
+              inputs:
+                - slotName: original
+                  fileName: photo.jpg
+                  contentType: image/jpeg
+                  sizeBytes: 414241
+      responses:
+        '201':
+          description: Job created with status `initiated`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateJobResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          description: "`INSUFFICIENT_BALANCE` or `PAYG_LIMIT_REACHED`."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: "`TASK_TYPE_NOT_FOUND`."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: "`VALIDATION_ERROR` (wrong slot name or content type, missing `pageCount`; see `fields`) or `FILE_TOO_LARGE`."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      tags: [Jobs]
+      summary: List jobs
+      operationId: listJobs
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/JobStatus'
+        - name: taskTypeSlug
+          in: query
+          schema:
+            type: string
+            example: ai-image-detection
+        - name: createdAfter
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: createdBefore
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Jobs, newest first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /uploads:
+    put:
+      tags: [Upload workflow]
+      summary: Step 2 — Upload the file
+      description: |
+        **On this page:** leave the fields empty and choose the file. The request goes to the `uploadUrl`
+        from Step 1 with the `Content-Type` declared there; the body type selected below is ignored.
+
+        **Manual use (on-prem servers with local file storage only):** fill `path` (decoded), `expires` and
+        `sig` from the `uploadUrl`, pick the body type matching Step 1's `contentType`, and choose the file.
+
+        With cloud storage, `uploadUrl` points at storage, not the Authenta API — outside this page, use
+        `curl -X PUT -H "Content-Type: <contentType>" --upload-file <file> "<uploadUrl>"`.
+      operationId: uploadFile
+      security: []
+      parameters:
+        - name: path
+          in: query
+          required: false
+          description: "Manual mode only: `path` value from `uploadUrl` (decoded)."
+          schema:
+            type: string
+        - name: expires
+          in: query
+          required: false
+          description: "Manual mode only: `expires` value from `uploadUrl`."
+          schema:
+            type: integer
+        - name: sig
+          in: query
+          required: false
+          description: "Manual mode only: `sig` value from `uploadUrl`."
+          schema:
+            type: string
+      requestBody:
+        required: true
+        description: The raw file.
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+          video/mp4:
+            schema:
+              type: string
+              format: binary
+          video/webm:
+            schema:
+              type: string
+              format: binary
+          audio/mpeg:
+            schema:
+              type: string
+              format: binary
+          audio/wav:
+            schema:
+              type: string
+              format: binary
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Stored (cloud storage). Continue with Step 3.
+        '204':
+          description: Stored (on-prem local storage). Continue with Step 3.
+        '403':
+          description: Rejected by cloud storage — expired URL, or size / content type differ from Step 1.
+
+  /jobs/{id}/finalize:
+    post:
+      tags: [Upload workflow]
+      summary: Step 3 — Finalize and queue the job
+      description: Call after every input is uploaded. Moves the job to `queued`.
+      operationId: finalizeJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job queued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: "`JOB_NOT_FOUND`, or `UPLOAD_NOT_FOUND` — the file was not uploaded to `uploadUrl` (or the upload was rejected)."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: "`UPLOAD_ALREADY_FINALIZED`."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /jobs/{id}:
+    get:
+      tags: [Upload workflow]
+      summary: Step 4 — Get the job, its result and files
+      description: Poll every few seconds until `status` is `completed` or `failed`, then read `result`. `artifacts[].downloadUrl` downloads each file.
+      operationId: getJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job with its artifacts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/JobNotFound'
+    delete:
+      tags: [Jobs]
+      summary: Delete a job and its files
+      operationId: deleteJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/JobNotFound'
+        '422':
+          description: "`JOB_DELETE_NOT_ALLOWED` — the job is processing."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /jobs/{id}/cancel:
+    post:
+      tags: [Jobs]
+      summary: Cancel a job
+      description: Only for jobs in `initiated` or `queued` status.
+      operationId: cancelJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/JobNotFound'
+        '422':
+          description: "`CANCEL_NOT_ALLOWED` — the job is processing or already finished."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

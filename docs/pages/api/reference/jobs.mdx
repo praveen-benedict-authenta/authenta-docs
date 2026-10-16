@@ -1,592 +1,432 @@
 # Jobs API Reference
 
-The Jobs API allows you to create processing jobs, submit media for analysis, and manage task execution across various AI detection models.
+A **job** is one analysis of your media by one detection model. You create a job, upload the media straight to storage, finalize the job, and read the result once processing completes.
 
-This page documents all available Jobs API endpoints, including task types, request/response schemas, examples, and error handling.
+| Endpoint | Method | Permission | Description |
+|---|---|---|---|
+| [`/jobs`](#1-create-a-job) | `POST` | Write | Create a job and get an upload URL per input |
+| [`/jobs/{id}/finalize`](#3-finalize-the-job) | `POST` | Write | Queue the job for processing once its files are uploaded |
+| [`/jobs`](#list-jobs) | `GET` | Read | List your jobs |
+| [`/jobs/{id}`](#get-a-job) | `GET` | Read | Get a job with its status, result and files |
+| [`/jobs/{id}/cancel`](#cancel-a-job) | `POST` | Delete | Cancel a job that has not started processing |
+| [`/jobs/{id}`](#delete-a-job) | `DELETE` | Delete | Delete a job and its files |
 
-# Available Task Types
-
-Authenta supports multiple AI detection task types. Each task type processes specific media formats and has unique configuration requirements.
-
-## Task Types Reference
-
-| ID | Slug | Model | Description | Supported Formats | Timeout |
-|---|---|---|---|---|---|
-| `1` | `ai-image-detection` | AI Image Detector | Detects if an image is AI-generated or real | JPEG, PNG | 300s |
-| `2` | `ai-audio-detection` | AI Audio Detector | Detects if audio is AI-generated or real | MP3, WAV, M4A | 600s |
-| `3` | `ai-video-detection` | AI Video Detector | Detects if a video is AI-generated or real | MP4, MOV | 600s |
-| `4` | `faceswap-detection` | Face Swap Detection | Detects if a face has been swapped or manipulated in a video | MP4, MOV, WebM | 1800s |
-| `5` | `image-forgery-detection` | Image Forgery Detection | Detects if an image contains forgery or tampered content | JPEG, PNG | 300s |
-| `6` | `document-intelligence` | Document Intelligence | Detects if a document contains forgery or tampered content | JPEG, PNG, PDF | 300s |
-| `7` | `face-liveness-detection` | Face Liveness Detection | Detects if a face in an image is real or spoofed | JPEG, PNG | 600s |
-| `8` | `face-intelligence` | Face Intelligence | Combined face analysis and verification workflow | JPEG, PNG, MP4, WebM, MOV | 600s |
-| `9` | `face-embedding` | Face Embedding | Generates face embedding vectors from images | JPEG, PNG | 600s |
-| `10` | `audio-splitter` | Audio Splitter | Splits audio into foreground and background tracks | MP3, WAV, M4A | 600s |
-| `11` | `ekyc-deepfake` | EKYC Deepfakes | Enhanced deepfake detection model for EKYC workflows | MP4, MOV, WebM | 600s |
-| `13` | `pdf-tampering-detection` | PDF Tampering Detection | Detects if a PDF document has been tampered or forged | PDF | 300s |
-
-## PDF Tampering Detection
-
-Task type `13` (`pdf-tampering-detection`) accepts **PDF files only** as input. The workflow is identical to other task types — create a job, upload the PDF to the pre-signed URL, then finalize. Use `contentType: "application/pdf"` and `slotName: "original"` when creating the job.
-
-```bash
-curl -X POST "https://platform.authenta.ai/api/v1/jobs" \
-  -H "Authorization: Bearer api_xxxxxxxx..." \
-  -H "Content-Type: application/json" \
-  -d '{
-    "inputs": [
-      {
-        "contentType": "application/pdf",
-        "fileName": "document",
-        "sizeBytes": 204800,
-        "slotName": "original"
-      }
-    ],
-    "taskTypeId": "13"
-  }'
-```
-
-The result fields depend on the selected task type.
-
-# Overview
-
-The Jobs API supports the following operations:
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/v1/jobs` | GET | List all jobs for the current tenant |
-| `/api/v1/jobs/{id}` | GET | Get details of a specific job |
-| `/api/v1/jobs` | POST | Create a new job and upload media |
-| `/api/v1/jobs/{id}/finalize` | POST | Finalize a job and send to processing queue |
-| `/api/v1/jobs/{id}/cancel` | POST | Cancel a job that is not yet processing |
-| `/api/v1/jobs/{id}` | DELETE | Delete a job and its associated media |
-
-The typical workflow is:
-
-1. **POST `/api/v1/jobs`** → Create a job and upload media files
-2. **POST `/api/v1/jobs/{id}/finalize`** → Finalize the job and queue for processing
-3. **GET `/api/v1/jobs/{id}`** → Poll for job status and results
-
-# Authentication
-
-All endpoints require:
+All paths are relative to the base URL `https://platform.authenta.ai/api/v1` (on-prem deployments use their own host), and every request needs your API key:
 
 ```http
 Authorization: Bearer api_xxxxxxxx...
 ```
 
-See: [Authentication](/api/authentication)
+See [Authentication](/api/authentication) and [Managing API Keys](/api/managing-api-keys) for permissions.
 
-# 1. Create Job & Upload Media
+# Task types
 
-### `POST /api/v1/jobs`
+A **task type** is a detection model. Pass its ID as `taskTypeId` when creating a job, with one input per slot. Every task type currently has a single input slot named **`original`**.
 
-Creates a new processing job and uploads media files to the specified input slots.
+| `taskTypeId` | Slug | Model | Accepted `contentType` |
+|---|---|---|---|
+| `1` | `ai-image-detection` | AI Image Detector | `image/jpeg`, `image/png` |
+| `2` | `ai-audio-detection` | AI Audio Detector | `audio/mpeg`, `audio/wav`, `audio/m4a` |
+| `3` | `ai-video-detection` | AI Video Detector | `video/mp4`, `video/mov` |
+| `4` | `faceswap-detection` | Face Swap Detection | `video/mp4`, `video/mov`, `video/webm` |
+| `5` | `image-forgery-detection` | Image Forgery Detection | `image/jpeg`, `image/png` |
+| `6` | `document-intelligence` | Document Forgery Detection | `image/jpeg`, `image/png` |
+| `7` | `face-liveness-detection` | Face Liveness Detection | `image/jpeg`, `image/png` |
+| `8` | `face-intelligence` | Face Intelligence | `image/jpeg`, `image/png`, `video/mp4`, `video/webm`, `video/quicktime` |
+| `9` | `face-embedding` | Face Embedding | `image/jpeg`, `image/png` |
+| `10` | `audio-splitter` | Audio Splitter | `audio/mpeg`, `audio/wav`, `audio/m4a` |
+| `11` | `ekyc-deepfake` | EKYC Deepfakes | `video/mp4`, `video/mov`, `video/webm` |
+| `12` | `pdf-tampering-detection` | PDF Tampering Detection | `application/pdf` (also send `pageCount`) |
 
-## Request Body
+Which task types you can use depends on your plan. On-prem deployments may use different IDs; ask your administrator.
+
+# Job lifecycle
+
+```
+initiated ──finalize──► queued ──► processing ──► completed
+    │                     │                  └──► failed
+    └──────cancel─────────┴──► cancelled
+```
+
+| Status | Meaning |
+|---|---|
+| `initiated` | Created; waiting for the file upload and `finalize` |
+| `queued` | Finalized; waiting for a detection worker |
+| `processing` | A worker is analyzing the media |
+| `completed` | Done — `result` holds the verdict |
+| `failed` | Processing failed — `result` describes the error |
+| `cancelled` | Cancelled before processing started |
+
+# Running a job
+
+## 1. Create a job
+
+### `POST /jobs`
+
+Send the [task type](#task-types) and, for each input file, its name, MIME type and **exact** size in bytes.
+
+### Request body
 
 ```ts
-interface JobUploadRequest {
-  inputs: InputSlot[];
-  taskTypeId: string;
-}
-
-interface InputSlot {
-  contentType: string;        // MIME type (e.g., "image/jpeg")
-  fileName: string;           // File name (e.g., "real", "photo_001")
-  sizeBytes: number;          // File size in bytes
-  slotName: string;           // Input slot identifier (e.g., "original")
+interface CreateJobRequest {
+  taskTypeId: string;          // e.g. "1" for AI image detection
+  inputs: {
+    slotName: string;          // input slot: "original"
+    fileName: string;          // e.g. "photo.jpg"
+    contentType: string;       // MIME type accepted by the task type
+    sizeBytes: number;         // exact file size in bytes
+    pageCount?: number;        // PDFs only: required for pdf-tampering-detection
+  }[];
+  parameters?: {               // face-intelligence only
+    isFaceswapCheck?: boolean;
+    isLivenessCheck?: boolean;
+    isSimilarityCheck?: boolean;
+  };
 }
 ```
 
-`taskTypeId` is required in the JSON body as a **string**. Do not send it as a query parameter or as a number.
-
-### Example Request
+### Example
 
 ```bash
 curl -X POST "https://platform.authenta.ai/api/v1/jobs" \
   -H "Authorization: Bearer api_xxxxxxxx..." \
   -H "Content-Type: application/json" \
   -d '{
+    "taskTypeId": "1",
     "inputs": [
-      {
-        "contentType": "image/jpeg",
-        "fileName": "real",
-        "sizeBytes": 637067,
-        "slotName": "original"
-      }
-    ],
-    "taskTypeId": "1"
+      { "slotName": "original", "fileName": "photo.jpg", "contentType": "image/jpeg", "sizeBytes": 414241 }
+    ]
   }'
 ```
 
-## Response
-
-```ts
-interface JobUploadResponse {
-  job: {
-    id: string;
-    status: string;
-  };
-  inputs: InputSlotResponse[];
-}
-
-interface InputSlotResponse {
-  slotName: string;
-  uploadUrl: string;    // Pre-signed URL for direct file upload
-  contentType: string;
-  fileName: string;
-  sizeBytes: number;
-}
-```
-
-### Example Response
+### Response — `201 Created`
 
 ```json
 {
   "job": {
-    "id": "469",
-    "status": "initiated"
+    "id": "3140",
+    "tenantId": "6f1c2a4e-1d2b-4c3d-9e8f-0a1b2c3d4e5f",
+    "taskTypeId": "1",
+    "status": "initiated",
+    "cost": 1,
+    "createdAt": "2026-10-14T16:10:21.040Z",
+    "updatedAt": "2026-10-14T16:10:21.040Z",
+    "result": null
   },
   "inputs": [
     {
       "slotName": "original",
-      "uploadUrl": "https://authenta-storage.s3.us-east-1.amazonaws.com/jobs/469/original?signature=...",
-      "contentType": "image/jpeg",
-      "fileName": "real",
-      "sizeBytes": 637067
+      "uploadUrl": "https://<bucket>.s3.us-east-1.amazonaws.com/jobs/3140/input/original.media?X-Amz-Algorithm=...",
+      "uploadUrlExpiresAt": "2026-10-14T16:10:51.040Z"
     }
   ]
 }
 ```
 
-## Response Codes
+The job's `cost` in credits is deducted from your balance when the job is created. See [Quotas & Credits](/api/quotas-and-credits).
 
-| Status Code | Meaning |
-|-------------|---------|
-| `200` | Job created successfully |
-| `400` | Invalid input format or task type |
-| `401` | Missing or invalid API key |
-| `402` | Insufficient credit balance |
-| `403` | Permission denied |
+### Errors
 
-# 2. Finalize Job & Queue for Processing
+| Status | `name` | Cause |
+|---|---|---|
+| `401` | `INVALID_API_KEY` | Missing, revoked or expired API key |
+| `402` | `INSUFFICIENT_BALANCE` / `PAYG_LIMIT_REACHED` | Not enough credits, or the monthly pay-as-you-go limit is reached |
+| `404` | `TASK_TYPE_NOT_FOUND` | Unknown task type, or not available to your account |
+| `422` | `VALIDATION_ERROR` | Invalid body — wrong slot name, MIME type not accepted by the task type, missing `pageCount`; see `fields` |
+| `422` | `FILE_TOO_LARGE` | `sizeBytes` is above the upload limit (10 MB by default) |
 
-### `POST /api/v1/jobs/{jobId}/finalize`
+## 2. Upload the file
 
-Finalizes a job and sends it to the processing queue for analysis. This must be called after uploading all media files.
-
-## Request Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `jobId` | number/string | Yes | The job ID returned from the create endpoint (e.g., `469`) |
-
-## Request Body
-
-No request body required. The endpoint uses the job ID from the URL path.
+`PUT` the file's bytes to its `uploadUrl`. This request goes **straight to storage**, not to the Authenta API, so do **not** send your `Authorization` header.
 
 ```bash
-curl -X POST "https://platform.authenta.ai/api/v1/jobs/469/finalize" \
+curl -X PUT "<uploadUrl>" \
+  -H "Content-Type: image/jpeg" \
+  --upload-file photo.jpg
+```
+
+:::warning
+- `Content-Type` must be exactly the `contentType` you sent in step 1.
+- The file must be exactly `sizeBytes` bytes long.
+- Quote the URL — it contains `&`.
+- Upload URLs are short-lived: **30 seconds** for small files, longer for large ones (see `uploadUrlExpiresAt`). Upload immediately after creating the job; if the URL expires, create a new job.
+
+Storage rejects the upload if any of these don't match, and `finalize` then fails with `UPLOAD_NOT_FOUND`.
+:::
+
+## 3. Finalize the job
+
+### `POST /jobs/{id}/finalize`
+
+Call once every input is uploaded. The job moves to `queued`.
+
+```bash
+curl -X POST "https://platform.authenta.ai/api/v1/jobs/3140/finalize" \
   -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
-## Response
+### Response — `200 OK`
 
-```ts
-interface JobFinalizeResponse {
-  jobId: number | string;
-  taskTypeId: number;
-  status: "queued" | "processing";
-  queuedAt: string;
-  updatedAt: string;
-  message: string;
-}
+The [job object](#the-job-object) with `"status": "queued"`.
+
+### Errors
+
+| Status | `name` | Cause |
+|---|---|---|
+| `404` | `JOB_NOT_FOUND` | No such job in your account |
+| `404` | `UPLOAD_NOT_FOUND` | A file was not uploaded to its `uploadUrl` (or the upload was rejected) |
+| `409` | `UPLOAD_ALREADY_FINALIZED` | The job was already finalized |
+
+## 4. Get the result
+
+Poll [`GET /jobs/{id}`](#get-a-job) every few seconds until `status` is `completed` or `failed`, then read `result`:
+
+```python
+import os, time, requests
+
+API = "https://platform.authenta.ai/api/v1"
+HEADERS = {"Authorization": f"Bearer {os.environ['AUTHENTA_API_KEY']}"}
+
+def wait_for_job(job_id: str, interval: float = 3.0, timeout: float = 600.0) -> dict:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        res = requests.get(f"{API}/jobs/{job_id}", headers=HEADERS)
+        res.raise_for_status()
+        job = res.json()
+        if job["status"] in ("completed", "failed", "cancelled"):
+            return job
+        time.sleep(interval)
+    raise TimeoutError(f"Job {job_id} did not finish within {timeout}s")
 ```
 
-### Example Response
+# Reading jobs
 
-```json
-{
-  "jobId": 469,
-  "taskTypeId": 1,
-  "status": "queued",
-  "queuedAt": "2025-12-02T19:39:35.100Z",
-  "updatedAt": "2025-12-02T19:39:35.100Z",
-  "message": "Job successfully queued for processing"
-}
-```
+## List jobs
 
-## Response Codes
+### `GET /jobs`
 
-| Status Code | Meaning |
-|-------------|---------|
-| `200` | Job finalized and queued successfully |
-| `400` | Job not found or already finalized |
-| `401` | Missing or invalid API key |
-| `402` | Insufficient credit balance |
-| `403` | Permission denied |
+Returns your jobs, newest first.
 
-# 3. List All Jobs
-
-### `GET /api/v1/jobs`
-
-Retrieves a paginated list of all jobs for the current tenant.
-
-## Request Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `page` | number | No | Page number (default: 1) |
-| `limit` | number | No | Items per page (default: 10, max: 100) |
-| `status` | string | No | Filter by job status (e.g., `queued`, `processing`, `completed`, `failed`) |
-
-### Example Request
+| Query parameter | Type | Default | Description |
+|---|---|---|---|
+| `limit` | integer | `20` | Items per page (1–100) |
+| `offset` | integer | `0` | Items to skip |
+| `status` | string | — | Filter by [status](#job-lifecycle) |
+| `taskTypeSlug` | string | — | Filter by [task type](#task-types) slug, e.g. `ai-image-detection` |
+| `createdAfter` | ISO 8601 date | — | Jobs created on or after this time |
+| `createdBefore` | ISO 8601 date | — | Jobs created on or before this time |
 
 ```bash
-curl -X GET "https://platform.authenta.ai/api/v1/jobs?page=1&limit=10" \
+curl "https://platform.authenta.ai/api/v1/jobs?limit=10&status=completed" \
   -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
-## Response
-
-```ts
-interface JobListResponse {
-  data: JobResponse[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    pages: number;
-  };
-}
-```
-
-### Example Response
+### Response — `200 OK`
 
 ```json
 {
   "data": [
     {
-      "jobId": 469,
-      "taskTypeId": 1,
+      "id": "3140",
+      "tenantId": "6f1c2a4e-1d2b-4c3d-9e8f-0a1b2c3d4e5f",
+      "taskTypeId": "1",
       "status": "completed",
-      "createdAt": "2025-12-02T19:39:27.525Z",
-      "updatedAt": "2025-12-02T19:40:35.100Z"
+      "cost": 1,
+      "createdAt": "2026-10-14T16:10:21.040Z",
+      "updatedAt": "2026-10-14T16:11:02.511Z",
+      "result": { "isFake": false, "confidence": 0.98 }
     }
   ],
-  "pagination": {
-    "page": 1,
-    "limit": 10,
-    "total": 42,
-    "pages": 5
-  }
+  "total": 42,
+  "limit": 10,
+  "offset": 0
 }
 ```
 
-## Response Codes
+## Get a job
 
-| Status Code | Meaning |
-|-------------|---------|
-| `200` | Jobs retrieved successfully |
-| `401` | Missing or invalid API key |
-| `403` | Permission denied |
+### `GET /jobs/{id}`
 
-# 4. Get Job Details
-
-### `GET /api/v1/jobs/{id}`
-
-Retrieves detailed information about a specific job.
-
-## Request Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | number/string | Yes | The job ID (e.g., `469`) |
-
-### Example Request
+Returns the [job object](#the-job-object) plus its `artifacts`: the media you uploaded and any files the model produced.
 
 ```bash
-curl -X GET "https://platform.authenta.ai/api/v1/jobs/469" \
+curl "https://platform.authenta.ai/api/v1/jobs/3140" \
   -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
-## Response
-
-```ts
-interface JobDetailResponse {
-  job: {
-    id: string;
-    status: string;
-  };
-  result?: ImageDetectionResult;
-}
-
-interface ImageDetectionResult {
-  isFake: boolean;
-  confidencePercent: number;
-  fakeConfidencePercent: number;
-  realConfidencePercent: number;
-}
-```
-
-### Example Response
+### Response — `200 OK`
 
 ```json
 {
-  "job": {
-    "id": "469",
-    "status": "completed"
-  },
-  "result": {
-    "isFake": true,
-    "confidencePercent": 98.0,
-    "fakeConfidencePercent": 98.0,
-    "realConfidencePercent": 2.0
-  }
-}
-```
-
-For image detection, `result` is a flat object. Use `fakeConfidencePercent` and `realConfidencePercent` as percentages; do not look for `confidence` or `isAiGenerated`. If your application needs a normalized confidence value between `0` and `1`, calculate `fakeConfidencePercent / 100`.
-
-## Response Codes
-
-| Status Code | Meaning |
-|-------------|---------|
-| `200` | Job details retrieved successfully |
-| `401` | Missing or invalid API key |
-| `403` | Permission denied |
-| `404` | Job not found |
-
-# 5. Cancel Job
-
-### `POST /api/v1/jobs/{id}/cancel`
-
-Cancels a job that is not yet processing. Once processing has started, jobs cannot be cancelled.
-
-## Request Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | number/string | Yes | The job ID (e.g., `469`) |
-
-## Request Body
-
-No request body required.
-
-### Example Request
-
-```bash
-curl -X POST "https://platform.authenta.ai/api/v1/jobs/469/cancel" \
-  -H "Authorization: Bearer api_xxxxxxxx..."
-```
-
-## Response
-
-```ts
-interface JobResponse {
-  job: {
-    id: string;
-    status: "cancelled";
-  };
-}
-```
-
-### Example Response
-
-```json
-{
-  "job": {
-    "id": "469",
-    "status": "cancelled"
-  }
-}
-```
-
-## Response Codes
-
-| Status Code | Meaning |
-|-------------|---------|
-| `200` | Job cancelled successfully |
-| `401` | Missing or invalid API key |
-| `403` | Permission denied |
-| `404` | Job not found |
-| `409` | Job cannot be cancelled (already processing or completed) |
-| `422` | Unprocessable entity (invalid state) |
-
-# 6. Delete Job
-
-### `DELETE /api/v1/jobs/{id}`
-
-Deletes a job and its associated media files. Jobs can only be deleted if they are not currently processing.
-
-## Request Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | number/string | Yes | The job ID (e.g., `469`) |
-
-### Example Request
-
-```bash
-curl -X DELETE "https://platform.authenta.ai/api/v1/jobs/469" \
-  -H "Authorization: Bearer api_xxxxxxxx..."
-```
-
-## Response
-
-Returns HTTP 204 No Content on success (no response body).
-
-## Response Codes
-
-| Status Code | Meaning |
-|-------------|---------|
-| `204` | Job deleted successfully |
-| `401` | Missing or invalid API key |
-| `403` | Permission denied |
-| `404` | Job not found |
-
-# Complete Workflow Example
-
-## Step 1: Create Job with Media
-
-```bash
-curl -X POST "https://platform.authenta.ai/api/v1/jobs" \
-  -H "Authorization: Bearer api_xxxxxxxx..." \
-  -H "Content-Type: application/json" \
-  -d '{
-    "inputs": [
-      {
-        "contentType": "image/jpeg",
-        "fileName": "test_image",
-        "sizeBytes": 1048576,
-        "slotName": "original"
-      }
-    ],
-    "taskTypeId": "1"
-  }'
-```
-
-**Response:**
-```json
-{
-  "job": {
-    "id": "469",
-    "status": "initiated"
-  },
-  "inputs": [
+  "id": "3140",
+  "tenantId": "6f1c2a4e-1d2b-4c3d-9e8f-0a1b2c3d4e5f",
+  "taskTypeId": "1",
+  "status": "completed",
+  "cost": 1,
+  "createdAt": "2026-10-14T16:10:21.040Z",
+  "updatedAt": "2026-10-14T16:11:02.511Z",
+  "result": { "isFake": false, "confidence": 0.98 },
+  "artifacts": [
     {
+      "id": "8812",
+      "kind": "input",
       "slotName": "original",
-      "uploadUrl": "https://authenta-storage.s3.us-east-1.amazonaws.com/jobs/469/original?signature=..."
+      "status": "completed",
+      "contentType": "image/jpeg",
+      "metadata": { "fileName": "photo.jpg", "sizeBytes": 414241 },
+      "downloadUrl": "https://<bucket>.s3.us-east-1.amazonaws.com/jobs/3140/input/original.media?X-Amz-...",
+      "createdAt": "2026-10-14T16:10:21.040Z"
     }
   ]
 }
 ```
 
-## Step 2: Upload Media File
+### Errors
 
-Use the `uploadUrl` provided in the response to upload your media file:
+| Status | `name` | Cause |
+|---|---|---|
+| `404` | `JOB_NOT_FOUND` | No such job in your account, or it was deleted |
+
+## Downloading files
+
+Each entry in `artifacts` is one file of the job:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Artifact ID |
+| `kind` | string | `input` (your upload) or a model output: `result`, `heatmap`, `image`, `report`, `mask`, `audio` |
+| `slotName` | string \| null | Input slot for `input` artifacts, otherwise `null` |
+| `status` | string | `pending` (not uploaded/finalized yet) or `completed` |
+| `contentType` | string | MIME type of the file |
+| `metadata` | object \| null | For inputs: `fileName`, `sizeBytes` (and `pageCount` for PDFs) |
+| `downloadUrl` | string \| null | Signed URL, valid for about **15 minutes**; `null` while `pending` |
+| `createdAt` | ISO 8601 date | When the artifact was recorded |
+
+Download a file with a plain `GET` to its `downloadUrl` — **without** your `Authorization` header, since the URL points at storage:
 
 ```bash
-curl -X PUT "https://authenta-storage.s3.us-east-1.amazonaws.com/jobs/469/original?signature=..." \
-  -H "Content-Type: image/jpeg" \
-  --data-binary "@/path/to/your/image.jpg"
+curl -o heatmap.png "<downloadUrl>"
 ```
 
-## Step 3: Finalize Job & Queue Processing
+If a `downloadUrl` has expired, call `GET /jobs/{id}` again for fresh URLs.
+
+## Result shapes
+
+`result` is `null` until the job finishes, and its shape depends on the task type.
+
+**AI image / audio / video detection**
+
+```json
+{ "isFake": true, "confidence": 0.91 }
+```
+
+**Image forgery detection**
+
+```json
+{ "isTampered": true, "confidence": 0.87 }
+```
+
+**Face-swap detection**
+
+```json
+{ "isDeepfake": true, "totalFaces": 2, "deepfakeFaces": 1 }
+```
+
+**Failed jobs**: `result` describes the failure:
+
+```json
+{ "error": "OutOfMemoryError", "message": "Worker ran out of GPU memory during video analysis" }
+```
+
+Other task types return model-specific fields; branch on `status` before reading `result`.
+
+# Managing jobs
+
+## Cancel a job
+
+### `POST /jobs/{id}/cancel`
+
+Cancels a job in `initiated` or `queued` status. Jobs that are already processing cannot be cancelled.
 
 ```bash
-curl -X POST "https://platform.authenta.ai/api/v1/jobs/469/finalize" \
+curl -X POST "https://platform.authenta.ai/api/v1/jobs/3140/cancel" \
   -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
-**Response:**
+### Response — `200 OK`
+
+The [job object](#the-job-object) with `"status": "cancelled"`.
+
+### Errors
+
+| Status | `name` | Cause |
+|---|---|---|
+| `404` | `JOB_NOT_FOUND` | No such job in your account |
+| `422` | `CANCEL_NOT_ALLOWED` | The job is processing or already finished |
+
+## Delete a job
+
+### `DELETE /jobs/{id}`
+
+Deletes the job's stored files. Jobs that are currently processing cannot be deleted.
+
+```bash
+curl -X DELETE "https://platform.authenta.ai/api/v1/jobs/3140" \
+  -H "Authorization: Bearer api_xxxxxxxx..."
+```
+
+### Response — `204 No Content`
+
+### Errors
+
+| Status | `name` | Cause |
+|---|---|---|
+| `404` | `JOB_NOT_FOUND` | No such job in your account, or it was already deleted |
+| `422` | `JOB_DELETE_NOT_ALLOWED` | The job is processing |
+
+# The job object
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Job ID |
+| `tenantId` | string (UUID) | Your account ID |
+| `taskTypeId` | string | [Task type](#task-types) used |
+| `status` | string | See [Job lifecycle](#job-lifecycle) |
+| `cost` | integer | Credits charged for the job |
+| `createdAt` / `updatedAt` | ISO 8601 date | Timestamps |
+| `result` | object \| null | The verdict — see [Result shapes](#result-shapes) |
+
+# Errors
+
+Every error response has the same shape:
+
 ```json
 {
-  "job": {
-    "id": "469",
-    "status": "queued"
-  }
+  "rid": "9b6f1d2e-5c1a-4b7e-8f3d-2a1c0e9d8b7a",
+  "name": "VALIDATION_ERROR",
+  "message": "Some fields contain invalid data. Please check and try again",
+  "fields": [
+    { "field": "inputs", "msg": "Content type \"video/mp4\" is not accepted for slot \"original\"" }
+  ]
 }
 ```
 
-The job will now be processed by the AI model. You can poll the job status using the appropriate endpoint or set up webhooks for real-time updates.
+| Field | Description |
+|---|---|
+| `rid` | Request ID — include it when contacting support |
+| `name` | Machine-readable error code; branch on this, not on `message` |
+| `message` | Human-readable description |
+| `fields` | Present on `VALIDATION_ERROR`: which fields are invalid and why |
 
-# Error Handling
+Errors common to every endpoint:
 
-## Common Error Responses
+| Status | `name` | Cause |
+|---|---|---|
+| `401` | `UNAUTHENTICATED` | No `Authorization` header |
+| `401` | `INVALID_API_KEY` | Revoked, expired or unknown API key |
 
-### Invalid Task Type
+# Next steps
 
-```json
-{
-  "code": "INVALID_TASK_TYPE",
-  "statusCode": 400,
-  "message": "Task type ID 99 does not exist"
-}
-```
-
-### Unsupported Media Type
-
-```json
-{
-  "code": "UNSUPPORTED_MEDIA_TYPE",
-  "statusCode": 400,
-  "message": "Task type 1 (ai-image-detection) does not support media type: video/mp4"
-}
-```
-
-### Job Not Found
-
-```json
-{
-  "code": "JOB_NOT_FOUND",
-  "statusCode": 404,
-  "message": "Job with ID 469 does not exist"
-}
-```
-
-### Insufficient Credits
-
-```json
-{
-  "code": "INSUFFICIENT_BALANCE",
-  "statusCode": 402,
-  "message": "Insufficient balance. Please top up or enable pay-as-you-go billing"
-}
-```
-
-# Best Practices
-
-### 📋 Use Correct Task Type IDs
-
-- Always verify the task type ID matches the media type you're uploading
-- Example: Use task type `1` (AI Image Detection) for JPEG/PNG images
-
-### 📤 Upload Files Promptly
-
-- After creating a job, upload media files as soon as possible
-- Upload URLs have a limited validity period (typically 1 hour)
-
-### ✅ Always Call Finalize
-
-- Never skip the finalize step
-- Jobs remain in "waiting_for_finalize" state until finalized
-- Processing only begins after finalize is called
-
-### 🔄 Handle Async Processing
-
-- Job processing is asynchronous
-- Implement polling or webhook handlers to track job status
-- Processing time varies by task type and media size
-
-### 💾 Monitor Credit Usage
-
-- Each job consumes credits based on task type and media size
-- Track your account balance to avoid failed jobs
-
-# Next Steps
-
-- [Learn about quotas and credits](/api/quotas-and-credits)
-- [View authentication details](/api/authentication)
-- [Explore SDK implementations](/api/python-sdk)
+- [Quotas & Credits](/api/quotas-and-credits)
+- [Authentication](/api/authentication)
+- [Python SDK](/api/python-sdk)

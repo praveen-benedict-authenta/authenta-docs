@@ -97,8 +97,9 @@ POST /jobs
 
 This creates a job in Authenta's database and returns:
 
-- `job.id`
-- `job.status`
+- `jobId`
+- `taskTypeId`
+- `status`
 - `inputs` — one entry per uploaded file, including its `uploadUrl` (pre-signed S3 URL)
 
 ### Example Request
@@ -124,10 +125,11 @@ curl -X POST "https://platform.authenta.ai/api/v1/jobs" \
 
 ```json
 {
-  "job": {
-    "id": "3140",
-    "status": "initiated"
-  },
+  "jobId": 3140,
+  "taskTypeId": 1,
+  "status": "waiting_for_finalize",
+  "createdAt": "2026-06-14T18:01:53.402Z",
+  "updatedAt": "2026-06-14T18:01:53.402Z",
   "inputs": [
     {
       "slotName": "original",
@@ -178,10 +180,12 @@ curl -X POST "https://platform.authenta.ai/api/v1/jobs/3140/finalize" \
 
 ```json
 {
-  "job": {
-    "id": "3140",
-    "status": "queued"
-  }
+  "jobId": 3140,
+  "taskTypeId": 1,
+  "status": "queued",
+  "queuedAt": "2026-06-14T18:02:10.000Z",
+  "updatedAt": "2026-06-14T18:02:10.000Z",
+  "message": "Job successfully queued for processing"
 }
 ```
 
@@ -253,20 +257,27 @@ Authenta always returns JSON.
 
 ```json
 {
-  "job": {
-    "id": "3140",
-    "status": "completed"
-  },
+  "jobId": 3140,
+  "taskTypeId": 1,
+  "taskTypeSlug": "ai-image-detection",
+  "status": "completed",
+  "createdAt": "2026-06-14T18:01:53.402Z",
+  "updatedAt": "2026-06-14T18:03:10.000Z",
+  "completedAt": "2026-06-14T18:03:10.000Z",
+  "inputs": [
+    {
+      "slotName": "original",
+      "contentType": "image/jpeg",
+      "fileName": "image.jpg",
+      "sizeBytes": 414241
+    }
+  ],
   "result": {
-    "isFake": true,
-    "confidencePercent": 98.0,
-    "fakeConfidencePercent": 98.0,
-    "realConfidencePercent": 2.0
+    "confidence": 0.98,
+    "isAiGenerated": true
   }
 }
 ```
-
-For image detection, the poll response exposes a flat `result` object with percentage fields. `confidence` and `isAiGenerated` are not returned by the Jobs API. To derive a normalized fake-confidence value, calculate `fakeConfidencePercent / 100`.
 
 ### Example List Response
 
@@ -274,10 +285,11 @@ For image detection, the poll response exposes a flat `result` object with perce
 {
   "data": [
     {
-      "job": {
-        "id": "3140",
-        "status": "completed"
-      }
+      "jobId": 3140,
+      "taskTypeId": 1,
+      "status": "completed",
+      "createdAt": "2026-06-14T18:01:53.402Z",
+      "updatedAt": "2026-06-14T18:03:10.000Z"
     }
   ],
   "pagination": {
@@ -340,7 +352,7 @@ Authenta returns structured error objects with a code, statusCode, and message.
 
 - `code`
 - `message`
-- `job.id` (if applicable)
+- `jobId` (if applicable)
 
 # Best Practices for API Integrations
 
