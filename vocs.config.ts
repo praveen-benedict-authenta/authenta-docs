@@ -9,6 +9,8 @@ export default defineConfig({
   },
   topNav: [
     { text: 'Documentation', link: '/on-prem/overview', match: '/on-prem' },
+    { text: 'API', link: '/api/introduction', match: '/api' },
+    { text: 'API Explorer', link: '/api/explorer' },
     { text: 'Try Authenta', link: 'https://platform.authenta.ai' },
     {
       text: 'Resources',
@@ -89,7 +91,8 @@ export default defineConfig({
         text: 'API Reference',
         collapsed: false,
         items: [
-          { text: 'Jobs API', link: '/api/reference/jobs' }
+          { text: 'Jobs API', link: '/api/reference/jobs' },
+          { text: 'API Explorer', link: '/api/explorer' },
         ],
       },
       {
