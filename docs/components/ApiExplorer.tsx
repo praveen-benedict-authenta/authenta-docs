@@ -90,8 +90,7 @@ export function ApiExplorer() {
         return req;
       }
 
-      if (method === 'PUT' && path.endsWith('/uploads')) {
-        if (new URL(req.url, window.location.href).searchParams.has('sig')) return req;
+      if (method === 'PUT' && path.endsWith('/upload')) {
         if (!state) {
           return block(req, 'Step 2 was not sent: no upload URL yet. Run Step 1 on this page first and check it returned 201.');
         }

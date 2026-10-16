@@ -368,40 +368,20 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /uploads:
+  /upload:
     put:
       tags: [Upload workflow]
       summary: Step 2 — Upload the file
       description: |
-        **On this page:** leave the fields empty and choose the file. The request goes to the `uploadUrl`
-        from Step 1 with the `Content-Type` declared there; the body type selected below is ignored.
+        PUT the raw file to the `uploadUrl` returned by Step 1, with the same `Content-Type` declared there.
+        The URL points at storage, not the Authenta API, so it takes no API key.
 
-        **Manual use (on-prem servers with local file storage only):** fill `path` (decoded), `expires` and
-        `sig` from the `uploadUrl`, pick the body type matching Step 1's `contentType`, and choose the file.
+        **On this page:** choose the file and click Execute. The request goes to the `uploadUrl` from Step 1
+        with the `Content-Type` declared there; the body type selected below is ignored.
 
-        With cloud storage, `uploadUrl` points at storage, not the Authenta API — outside this page, use
-        `curl -X PUT -H "Content-Type: <contentType>" --upload-file <file> "<uploadUrl>"`.
+        **Elsewhere:** `curl -X PUT -H "Content-Type: <contentType>" --upload-file <file> "<uploadUrl>"`.
       operationId: uploadFile
       security: []
-      parameters:
-        - name: path
-          in: query
-          required: false
-          description: "Manual mode only: `path` value from `uploadUrl` (decoded)."
-          schema:
-            type: string
-        - name: expires
-          in: query
-          required: false
-          description: "Manual mode only: `expires` value from `uploadUrl`."
-          schema:
-            type: integer
-        - name: sig
-          in: query
-          required: false
-          description: "Manual mode only: `sig` value from `uploadUrl`."
-          schema:
-            type: string
       requestBody:
         required: true
         description: The raw file.
@@ -436,11 +416,9 @@ paths:
               format: binary
       responses:
         '200':
-          description: Stored (cloud storage). Continue with Step 3.
-        '204':
-          description: Stored (on-prem local storage). Continue with Step 3.
+          description: Stored. Continue with Step 3.
         '403':
-          description: Rejected by cloud storage — expired URL, or size / content type differ from Step 1.
+          description: Rejected by storage — expired URL, or size / content type differ from Step 1.
 
   /jobs/{id}/finalize:
     post:
