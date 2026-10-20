@@ -1,0 +1,77 @@
+# Face Intelligence
+
+Runs several face checks on one image or video in a single job. You choose the checks with `parameters`.
+
+| Slug | ID | Status | Tagged | Model version |
+|---|---|---|---|---|
+| `face-intelligence` | `8` | Active | No | `v1` |
+
+## What it detects
+
+| Check | Parameter | Detects |
+|---|---|---|
+| Face swap | `isFaceswapCheck` | A face swapped onto someone else's body, as [`faceswap-detection`](/api/task-types/faceswap-detection) does |
+| Liveness | `isLivenessCheck` | A printed photo, screen or mask instead of a live person, as [`face-liveness-detection`](/api/task-types/face-liveness-detection) does |
+
+Anything outside the checks you enable is not examined. A face similarity check (`isSimilarityCheck`) needs a second, reference image, which this task type doesn't accept yet, so leave it off.
+
+## Request
+
+| Slot | Accepted `contentType` |
+|---|---|
+| `original` | `image/jpeg`, `image/png`, `video/mp4`, `video/webm`, `video/quicktime` |
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `isFaceswapCheck` | boolean | `false` | Run the face-swap check |
+| `isLivenessCheck` | boolean | `false` | Run the liveness check |
+
+```json
+{
+  "taskTypeId": "8",
+  "inputs": [
+    { "slotName": "original", "fileName": "selfie.mp4", "contentType": "video/mp4", "sizeBytes": 3145728 }
+  ],
+  "parameters": { "isFaceswapCheck": true, "isLivenessCheck": true }
+}
+```
+
+Enable at least one check. See [Running a job](/api/reference/jobs#running-a-job) for the full create, upload and finalize flow.
+
+## Limits
+
+- File size: up to the account upload limit, 10 MB by default.
+
+## Result
+
+Each check fills its own fields; fields for checks you didn't enable are `null`. Results are not tagged.
+
+| Field | Type | Description |
+|---|---|---|
+| `isDeepFake` | boolean \| null | Face-swap check: `true` if a swapped face was found |
+| `DeepFakeScore` | number \| null | Reserved for the face-swap check's score; currently always `null` |
+| `isSpoof` | boolean \| null | Liveness check: `true` if the capture is not a live person |
+| `isSimilar`, `similarityScore` | null | Similarity check; not available yet |
+| `modelVersion` | string | Version of the model that produced the result |
+
+```json
+{
+  "isDeepFake": false,
+  "DeepFakeScore": null,
+  "isSpoof": false,
+  "isSimilar": null,
+  "similarityScore": null,
+  "modelVersion": "v1"
+}
+```
+
+## Output artifacts
+
+| `kind` | File | Description |
+|---|---|---|
+| `result` | `result.json` | The combined result |
+
+## Cost and availability
+
+- The cost is the sum of the checks you enable: face swap 60 credits, liveness 30 credits. The exact amount is returned as `cost` when you create the job. See [Quotas & Credits](/api/quotas-and-credits).
+- Available on the cloud API; your plan decides which task types you can use.

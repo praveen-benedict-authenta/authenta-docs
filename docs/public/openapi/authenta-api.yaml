@@ -68,7 +68,7 @@ components:
         taskTypeId:
           type: string
           example: "1"
-          description: Task type ID — see the [task types table](/api/reference/jobs#task-types).
+          description: Task type ID — see the [task types catalog](/api/task-types#catalog).
         inputs:
           type: array
           minItems: 1

@@ -1,0 +1,65 @@
+# AI Image Detector
+
+Checks whether an image was created by an AI image generator.
+
+| Slug | ID | Status | Tagged | Model version |
+|---|---|---|---|---|
+| `ai-image-detection` | `1` | Active | Yes | `v2.1.0` |
+
+## What it detects
+
+| Detects | Does not detect |
+|---|---|
+| Fully AI-generated images, using patch-level pattern analysis | Traditional edits to a real photo, such as cropping, color adjustment or manual retouching. Use [`image-forgery-detection`](/api/task-types/image-forgery-detection) for those |
+
+## Request
+
+| Slot | Accepted `contentType` |
+|---|---|
+| `original` | `image/jpeg`, `image/png` |
+
+```json
+{
+  "taskTypeId": "1",
+  "inputs": [
+    { "slotName": "original", "fileName": "photo.jpg", "contentType": "image/jpeg", "sizeBytes": 414241 }
+  ]
+}
+```
+
+See [Running a job](/api/reference/jobs#running-a-job) for the full create, upload and finalize flow.
+
+## Limits
+
+- File size: up to the account upload limit, 10 MB by default.
+
+## Result
+
+Uses the standard [result fields](/api/task-types#result-fields).
+
+```json
+{
+  "isFake": false,
+  "confidencePercent": 75.55,
+  "fakeConfidencePercent": 24.45,
+  "realConfidencePercent": 75.55,
+  "tag": "real",
+  "tagBoundaries": { "real": 30, "likelyReal": 50, "likelyFake": 70 },
+  "modelVersion": "v2.1.0"
+}
+```
+
+## Output artifacts
+
+| `kind` | File | Description |
+|---|---|---|
+| `result` | `result.json` | Full result, with the image's file metadata and SHA3-256 / MD5 hashes |
+| `heatmap` | `heatmap.png` | Per-patch overlay on the image: blue leans real, red leans AI-generated |
+| `heatmap` | `power_spectrum.png` | Frequency spectrum of the image (`metadata.type` is `power_spectrum`) |
+
+Download them from `artifacts` on [`GET /jobs/{id}`](/api/reference/jobs#downloading-files).
+
+## Cost and availability
+
+- Fixed price per job, set by your plan. The exact amount is returned as `cost` when you create the job. See [Quotas & Credits](/api/quotas-and-credits).
+- Available on the cloud API; your plan decides which task types you can use.

@@ -1,0 +1,70 @@
+# Face Swap Detection
+
+:::warning
+**Deprecated.** Use [`ekyc-deepfake`](/api/task-types/ekyc-deepfake), the latest face-swap detector, for new integrations. `faceswap-detection` keeps working until its sunset date, which will be announced in advance.
+:::
+
+The earlier face-swap detector for videos.
+
+| Slug | ID | Status | Tagged | Model version |
+|---|---|---|---|---|
+| `faceswap-detection` | `4` | Deprecated | No | `v2` |
+
+## What it detects
+
+| Detects | Does not detect |
+|---|---|
+| Face-swapped deepfakes in video, checking each person who appears | Voice cloning, or edits that don't involve faces |
+
+## Request
+
+| Slot | Accepted `contentType` |
+|---|---|
+| `original` | `video/mp4`, `video/mov`, `video/webm` |
+
+```json
+{
+  "taskTypeId": "4",
+  "inputs": [
+    { "slotName": "original", "fileName": "interview.mp4", "contentType": "video/mp4", "sizeBytes": 5242880 }
+  ]
+}
+```
+
+## Limits
+
+- File size: up to the account upload limit, 10 MB by default.
+
+## Result
+
+This task type counts faces instead of returning a score, so its results have no `fakeConfidencePercent` or `tag`.
+
+| Field | Type | Description |
+|---|---|---|
+| `isFake` | boolean | `true` if any detected person's face is swapped |
+| `deepFakes` | integer | How many of the detected people have a swapped face |
+| `totalFaces` | integer | How many distinct people were detected |
+| `modelVersion` | string | Version of the model that produced the result |
+
+```json
+{ "isFake": false, "deepFakes": 0, "totalFaces": 2, "modelVersion": "v2" }
+```
+
+If no faces are found, `isFake` is `false` and both counts are `0`.
+
+## Output artifacts
+
+| `kind` | File | Description |
+|---|---|---|
+| `result` | `result.json` | Per-person verdicts and confidence, with face bounding boxes by frame |
+
+## Migrating to `ekyc-deepfake`
+
+1. Change `taskTypeId` from `4` to `11`. The input slot and accepted formats are the same.
+2. Read `fakeConfidencePercent` and `tag` instead of `deepFakes` and `totalFaces`. See [Reading results](/api/task-types#reading-results).
+3. Re-check any thresholds you apply: scores from different models aren't comparable.
+
+## Cost and availability
+
+- Fixed price per job, set by your plan. The exact amount is returned as `cost` when you create the job.
+- Available on the cloud API until its sunset date.

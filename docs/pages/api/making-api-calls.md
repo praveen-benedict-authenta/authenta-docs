@@ -73,7 +73,7 @@ job = analyze("test.jpg", "1", "image/jpeg")
 print(job["status"], job["result"])
 ```
 
-The task types, their IDs and accepted file types are listed under [Task types](/api/reference/jobs#task-types). The full status list is in [Job lifecycle](/api/reference/jobs#job-lifecycle).
+The task types, their IDs and accepted file types are listed in the [Task Types catalog](/api/task-types#catalog). The full status list is in [Job lifecycle](/api/reference/jobs#job-lifecycle).
 
 # Errors
 

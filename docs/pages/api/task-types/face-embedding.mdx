@@ -1,0 +1,64 @@
+# Face Embedding
+
+Returns a numeric vector describing the main face in an image, for face matching in your own system. This is a utility, not a detector: it gives no real or fake verdict.
+
+| Slug | ID | Status | Tagged | Model version |
+|---|---|---|---|---|
+| `face-embedding` | `9` | Active | No | `v1` |
+
+## What it does
+
+The largest face in the image is located and converted into a 512-number vector. Vectors of the same person are close together, so you can compare two faces by the cosine similarity of their vectors. Vectors are L2-normalized, so the dot product gives the cosine similarity directly.
+
+It does not check whether the face is real, live or swapped. Combine it with [`face-liveness-detection`](/api/task-types/face-liveness-detection) or [`ekyc-deepfake`](/api/task-types/ekyc-deepfake) if you need that.
+
+## Request
+
+| Slot | Accepted `contentType` |
+|---|---|
+| `original` | `image/jpeg`, `image/png` |
+
+```json
+{
+  "taskTypeId": "9",
+  "inputs": [
+    { "slotName": "original", "fileName": "portrait.jpg", "contentType": "image/jpeg", "sizeBytes": 262144 }
+  ]
+}
+```
+
+See [Running a job](/api/reference/jobs#running-a-job) for the full create, upload and finalize flow.
+
+## Limits
+
+- File size: up to the account upload limit, 10 MB by default.
+- The image must contain a detectable face. If none is found, the job fails and its credits are refunded.
+
+## Result
+
+| Field | Type | Description |
+|---|---|---|
+| `faceVector` | number[] | The face embedding: 512 numbers, L2-normalized |
+| `dimension` | integer | Length of `faceVector`; always `512` |
+| `modelVersion` | string | Version of the model that produced the result |
+
+```json
+{
+  "faceVector": [0.0121, -0.0344, 0.0587, "…509 more values…"],
+  "dimension": 512,
+  "modelVersion": "v1"
+}
+```
+
+Embeddings from different `modelVersion` values are not comparable. Re-generate your stored vectors when the version changes.
+
+## Output artifacts
+
+| `kind` | File | Description |
+|---|---|---|
+| `result` | `result.json` | The embedding vector and its dimension |
+
+## Cost and availability
+
+- Fixed price per job, set by your plan. The exact amount is returned as `cost` when you create the job. See [Quotas & Credits](/api/quotas-and-credits).
+- Available on the cloud API; your plan decides which task types you can use.

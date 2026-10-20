@@ -21,44 +21,9 @@ See [Authentication](/api/authentication) and [Managing API Keys](/api/managing-
 
 # Task types
 
-A **task type** is a detection model. Pass its ID as `taskTypeId` when creating a job, with one input per slot. Every task type currently has a single input slot named **`original`**.
+A **task type** is a detection model. Pass its ID as `taskTypeId` when creating a job, with one input per slot; every task type has a single input slot named **`original`**. Each task type accepts its own file formats and returns its own result fields.
 
-| `taskTypeId` | Slug | Model | Accepted `contentType` |
-|---|---|---|---|
-| `1` | `ai-image-detection` | AI Image Detector | `image/jpeg`, `image/png` |
-| `2` | `ai-audio-detection` | AI Audio Detector | `audio/mpeg`, `audio/wav`, `audio/m4a` |
-| `3` | `ai-video-detection` | AI Video Detector | `video/mp4`, `video/mov` |
-| `4` | `faceswap-detection` | Face Swap Detection | `video/mp4`, `video/mov`, `video/webm` |
-| `5` | `image-forgery-detection` | Image Forgery Detection | `image/jpeg`, `image/png` |
-| `6` | `document-intelligence` | Document Forgery Detection | `image/jpeg`, `image/png` |
-| `7` | `face-liveness-detection` | Face Liveness Detection | `image/jpeg`, `image/png` |
-| `8` | `face-intelligence` | Face Intelligence | `image/jpeg`, `image/png`, `video/mp4`, `video/webm`, `video/quicktime` |
-| `9` | `face-embedding` | Face Embedding | `image/jpeg`, `image/png` |
-| `10` | `audio-splitter` | Audio Splitter | `audio/mpeg`, `audio/wav`, `audio/m4a` |
-| `11` | `ekyc-deepfake` | EKYC Deepfakes | `video/mp4`, `video/mov`, `video/webm` |
-| `12` | `pdf-tampering-detection` | PDF Tampering Detection | `application/pdf` (also send `pageCount`) |
-
-Which task types you can use depends on your plan.
-
-## What each model detects
-
-Pick the model that matches the manipulation you are screening for. Each one is tuned for a specific kind of tampering, and a "real" verdict only covers what that model checks.
-
-| Task type | Designed to detect | Does not detect |
-|---|---|---|
-| `ai-image-detection` | AI-generated imagery, using pixel-level pattern analysis | Traditional photo edits that don't involve AI generation, such as cropping, color adjustment or manual retouching |
-| `ai-audio-detection` | AI-generated or voice-cloned speech in audio clips | Background noise editing, simple audio splicing, or non-speech AI-generated sounds |
-| `ai-video-detection` | AI-generated video content, by analyzing sampled frames | Traditional video edits such as cuts, color grading or non-AI visual effects |
-| `faceswap-detection` | Face-swapped deepfakes in video, analyzing each detected identity | Other manipulation types such as voice cloning or non-facial video edits |
-| `image-forgery-detection` | Tampered regions in images, such as splicing, copy-move or inpainting | AI-generated imagery that has no traditionally edited regions |
-| `document-intelligence` | Whether a document image is AI-generated, then tampered regions such as edited text or altered fields | Manipulations made only in the document's underlying digital source file |
-| `face-liveness-detection` | Spoofed face captures such as printed photos, screen replays or masks | AI-generated faces or manipulated image content |
-| `face-intelligence` | The checks you enable in `parameters`: faceswap, liveness and similarity | Anything outside the enabled checks; results depend entirely on which checks are turned on |
-| `face-embedding` | Generates a face embedding vector for the primary detected face in the image | Not a detector: it gives no real/fake verdict, and returns an error if no face is detected |
-| `ekyc-deepfake` | Deepfakes in identity-verification (eKYC) video captures | Accuracy may be reduced for heavily compressed, low-resolution or non-facial footage |
-| `pdf-tampering-detection` | Tampering in scanned or image-based documents | Changes made only to native PDF text, shapes or other added document objects |
-
-To screen for more than one kind of manipulation, run one job per model, for example `ai-image-detection` and `image-forgery-detection` on the same photo.
+See [Task Types](/api/task-types) for the catalog of IDs, slugs and accepted formats, and a page per task type with its limits, result and artifacts. Which task types you can use depends on your plan. On-prem deployments may use different IDs, so keep the slug (e.g. `ai-image-detection`) as the identifier in your code.
 
 # Job lifecycle
 
@@ -256,7 +221,7 @@ curl "https://platform.authenta.ai/api/v1/jobs?limit=10&status=completed" \
       "cost": 1,
       "createdAt": "2026-10-14T16:10:21.040Z",
       "updatedAt": "2026-10-14T16:11:02.511Z",
-      "result": { "isFake": false, "confidencePercent": 85.93, "fakeConfidencePercent": 14.07, "realConfidencePercent": 85.93 }
+      "result": { "isFake": false, "confidencePercent": 85.93, "fakeConfidencePercent": 14.07, "realConfidencePercent": 85.93, "tag": "real", "tagBoundaries": { "real": 30, "likelyReal": 50, "likelyFake": 75 }, "modelVersion": "v2.1.0" }
     }
   ],
   "total": 42,
@@ -287,7 +252,7 @@ curl "https://platform.authenta.ai/api/v1/jobs/1" \
   "cost": 1,
   "createdAt": "2026-10-14T16:10:21.040Z",
   "updatedAt": "2026-10-14T16:11:02.511Z",
-  "result": { "isFake": false, "confidencePercent": 85.93, "fakeConfidencePercent": 14.07, "realConfidencePercent": 85.93 },
+  "result": { "isFake": false, "confidencePercent": 85.93, "fakeConfidencePercent": 14.07, "realConfidencePercent": 85.93, "tag": "real", "tagBoundaries": { "real": 30, "likelyReal": 50, "likelyFake": 75 }, "modelVersion": "v2.1.0" },
   "artifacts": [
     {
       "id": "1",
@@ -334,42 +299,9 @@ If a `downloadUrl` has expired, call `GET /jobs/{id}` again for fresh URLs.
 
 ## Result shapes
 
-`result` is `null` until the job finishes. Every detection result has `isFake`; the other fields depend on the task type. Branch on `status` before reading `result`, and ignore fields you don't recognize: new fields can be added at any time.
+`result` is `null` until the job finishes. Branch on `status` before reading it, and ignore fields you don't recognize: new fields can be added at any time.
 
-### Common fields
-
-| Field | Type | Description |
-|---|---|---|
-| `isFake` | boolean | The verdict. `true` when `tag` is `likely_fake` or `fake` |
-| `confidencePercent` | number | Confidence (0–100) in the verdict that `isFake` reports |
-| `fakeConfidencePercent` | number | Confidence (0–100) that the media is fake. Only on some task types |
-| `realConfidencePercent` | number | Confidence (0–100) that the media is real. Only on some task types |
-| `tag` | string | Confidence tier: `real`, `likely_real`, `likely_fake` or `fake` |
-| `tagBoundaries` | object | The boundaries used to compute `tag` for this job (see below) |
-| `modelVersion` | string | Version of the model that produced the result |
-
-`tag`, `tagBoundaries` and `modelVersion` are saved when the job runs and are never recomputed, so jobs that ran before these fields were introduced don't have them. Treat all three as optional.
-
-### Tags
-
-`tag` places the fake confidence in one of four tiers. `tagBoundaries` holds the upper bound of each tier, as set for the task type when the job ran:
-
-```json
-{ "real": 30, "likelyReal": 50, "likelyFake": 75 }
-```
-
-| `tag` | `fakeConfidencePercent` | `isFake` |
-|---|---|---|
-| `real` | at or below `tagBoundaries.real` | `false` |
-| `likely_real` | at or below `tagBoundaries.likelyReal` | `false` |
-| `likely_fake` | at or below `tagBoundaries.likelyFake` | `true` |
-| `fake` | above `tagBoundaries.likelyFake` | `true` |
-
-Boundaries differ between task types, so compare `tag` rather than hard-coding a confidence threshold. Results tagged `likely_real` or `likely_fake` are the ones worth a manual review.
-
-### By task type
-
-**`ai-image-detection`**
+Scored detection results share the same fields: `isFake`, `fakeConfidencePercent`, `realConfidencePercent`, `confidencePercent`, `tag`, `tagBoundaries` and `modelVersion`. See [Reading results](/api/task-types#reading-results) for what each means and how to act on the tags.
 
 ```json
 {
@@ -383,57 +315,7 @@ Boundaries differ between task types, so compare `tag` rather than hard-coding a
 }
 ```
 
-**`ai-video-detection`, `ekyc-deepfake`, `face-liveness-detection`, `image-forgery-detection`**
-
-```json
-{ "isFake": true, "confidencePercent": 98.68 }
-```
-
-**`ai-audio-detection`**: also returns `windows`, the real confidence for each 4-second window of the clip. The spectrogram images are available as `image` [artifacts](#downloading-files); the `spectrogram` paths inside `result` are internal and can't be downloaded.
-
-```json
-{
-  "isFake": false,
-  "confidencePercent": 54.18,
-  "windows": {
-    "0-4s": { "RealConfidencePercent": 15.62, "spectrogram": "/app/jobs/560/output/spectrogram_window_0.png" },
-    "4-8s": { "RealConfidencePercent": 98.02, "spectrogram": "/app/jobs/560/output/spectrogram_window_1.png" }
-  },
-  "spectrogram": "/app/jobs/560/output/spectrogram.png"
-}
-```
-
-**`faceswap-detection`**: `deepFakes` is the number of the `totalFaces` detected faces that are face-swapped.
-
-```json
-{ "isFake": false, "deepFakes": 0, "totalFaces": 2 }
-```
-
-**`document-intelligence`**
-
-```json
-{ "isFake": false, "isTampered": false }
-```
-
-**`pdf-tampering-detection`**: page counts break down how each page was assessed.
-
-```json
-{
-  "isFake": true,
-  "verdict": "TAMPERED",
-  "confidencePercent": 82.9,
-  "fakeConfidencePercent": 82.9,
-  "realConfidencePercent": 17.1,
-  "totalPages": 1,
-  "fakePages": 1,
-  "editedPages": 0,
-  "scannedPages": 1,
-  "outOfScopePages": 0,
-  "aiCheckFailedPages": 0
-}
-```
-
-Other task types (`face-intelligence`, `face-embedding`, `audio-splitter`) return model-specific fields.
+Some task types add their own fields, such as per-window scores for audio or page counts for PDFs, and the utilities return no verdict at all. Each [task type's page](/api/task-types#catalog) shows its full result with an example.
 
 **Failed jobs**: `result` stays `null`. A job is retried automatically before it is marked `failed`, and its credits are refunded. Create a new job to try again; if it keeps failing, contact support with the job ID.
 
@@ -491,7 +373,7 @@ curl -X DELETE "https://platform.authenta.ai/api/v1/jobs/1" \
 | `status` | string | See [Job lifecycle](#job-lifecycle) |
 | `cost` | integer | Credits charged for the job |
 | `createdAt` / `updatedAt` | ISO 8601 date | Timestamps |
-| `result` | object \| null | The verdict: `isFake`, confidence fields, `tag`, `tagBoundaries` and `modelVersion`, plus task-specific fields. See [Result shapes](#result-shapes) |
+| `result` | object \| null | The verdict: `isFake`, confidence fields, `tag`, `tagBoundaries` and `modelVersion`, plus task-specific fields. See [Result shapes](#result-shapes) and [Reading results](/api/task-types#reading-results) |
 
 # Errors
 

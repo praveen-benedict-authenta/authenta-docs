@@ -97,10 +97,61 @@ export default defineConfig({
         ],
       },
       {
+        text: 'Task Types',
+        collapsed: false,
+        items: [
+          { text: 'Overview', link: '/api/task-types' },
+          {
+            text: 'Image',
+            collapsed: true,
+            items: [
+              { text: 'AI Image Detector', link: '/api/task-types/ai-image-detection' },
+              { text: 'Image Forgery Detection', link: '/api/task-types/image-forgery-detection' },
+            ],
+          },
+          {
+            text: 'Video and Face',
+            collapsed: true,
+            items: [
+              { text: 'eKYC Deepfake Detection', link: '/api/task-types/ekyc-deepfake' },
+              { text: 'AI Video Detector', link: '/api/task-types/ai-video-detection' },
+              { text: 'Face Liveness Detection', link: '/api/task-types/face-liveness-detection' },
+              { text: 'Face Intelligence', link: '/api/task-types/face-intelligence' },
+            ],
+          },
+          {
+            text: 'Audio',
+            collapsed: true,
+            items: [{ text: 'AI Audio Detector', link: '/api/task-types/ai-audio-detection' }],
+          },
+          {
+            text: 'Documents',
+            collapsed: true,
+            items: [
+              { text: 'Document Forgery Detection', link: '/api/task-types/document-intelligence' },
+              { text: 'PDF Tampering Detection', link: '/api/task-types/pdf-tampering-detection' },
+            ],
+          },
+          {
+            text: 'Utilities',
+            collapsed: true,
+            items: [
+              { text: 'Face Embedding', link: '/api/task-types/face-embedding' },
+              { text: 'Audio Splitter', link: '/api/task-types/audio-splitter' },
+            ],
+          },
+          {
+            text: 'Deprecated',
+            collapsed: true,
+            items: [{ text: 'Face Swap Detection', link: '/api/task-types/faceswap-detection' }],
+          },
+        ],
+      },
+      {
         text: 'Postman Collection',
         collapsed: false,
         items: [{ text: 'Download Collection', link: '/api/postman' }],
-      }
+      },
       // {
       //   text: 'Resources',
       //   collapsed: false,
