@@ -11,7 +11,7 @@ A **job** is one analysis of your media by one detection model. You create a job
 | [`/jobs/{id}/cancel`](#cancel-a-job) | `POST` | Delete | Cancel a job that has not started processing |
 | [`/jobs/{id}`](#delete-a-job) | `DELETE` | Delete | Delete a job and its files |
 
-All paths are relative to the base URL `https://platform.authenta.ai/api/v1` (on-prem deployments use their own host), and every request needs your API key:
+All paths are relative to the base URL `https://platform.authenta.ai/api/v1`, and every request needs your API key:
 
 ```http
 Authorization: Bearer api_xxxxxxxx...
@@ -38,7 +38,27 @@ A **task type** is a detection model. Pass its ID as `taskTypeId` when creating 
 | `11` | `ekyc-deepfake` | EKYC Deepfakes | `video/mp4`, `video/mov`, `video/webm` |
 | `12` | `pdf-tampering-detection` | PDF Tampering Detection | `application/pdf` (also send `pageCount`) |
 
-Which task types you can use depends on your plan. On-prem deployments may use different IDs; ask your administrator.
+Which task types you can use depends on your plan.
+
+## What each model detects
+
+Pick the model that matches the manipulation you are screening for. Each one is tuned for a specific kind of tampering, and a "real" verdict only covers what that model checks.
+
+| Task type | Designed to detect | Does not detect |
+|---|---|---|
+| `ai-image-detection` | AI-generated imagery, using pixel-level pattern analysis | Traditional photo edits that don't involve AI generation, such as cropping, color adjustment or manual retouching |
+| `ai-audio-detection` | AI-generated or voice-cloned speech in audio clips | Background noise editing, simple audio splicing, or non-speech AI-generated sounds |
+| `ai-video-detection` | AI-generated video content, by analyzing sampled frames | Traditional video edits such as cuts, color grading or non-AI visual effects |
+| `faceswap-detection` | Face-swapped deepfakes in video, analyzing each detected identity | Other manipulation types such as voice cloning or non-facial video edits |
+| `image-forgery-detection` | Tampered regions in images, such as splicing, copy-move or inpainting | AI-generated imagery that has no traditionally edited regions |
+| `document-intelligence` | Whether a document image is AI-generated, then tampered regions such as edited text or altered fields | Manipulations made only in the document's underlying digital source file |
+| `face-liveness-detection` | Spoofed face captures such as printed photos, screen replays or masks | AI-generated faces or manipulated image content |
+| `face-intelligence` | The checks you enable in `parameters`: faceswap, liveness and similarity | Anything outside the enabled checks; results depend entirely on which checks are turned on |
+| `face-embedding` | Generates a face embedding vector for the primary detected face in the image | Not a detector: it gives no real/fake verdict, and returns an error if no face is detected |
+| `ekyc-deepfake` | Deepfakes in identity-verification (eKYC) video captures | Accuracy may be reduced for heavily compressed, low-resolution or non-facial footage |
+| `pdf-tampering-detection` | Tampering in scanned or image-based documents | Changes made only to native PDF text, shapes or other added document objects |
+
+To screen for more than one kind of manipulation, run one job per model, for example `ai-image-detection` and `image-forgery-detection` on the same photo.
 
 # Job lifecycle
 
@@ -72,7 +92,7 @@ interface CreateJobRequest {
   taskTypeId: string;          // e.g. "1" for AI image detection
   inputs: {
     slotName: string;          // input slot: "original"
-    fileName: string;          // e.g. "photo.jpg"
+    fileName: string;          // e.g. "test.jpg"
     contentType: string;       // MIME type accepted by the task type
     sizeBytes: number;         // exact file size in bytes
     pageCount?: number;        // PDFs only: required for pdf-tampering-detection
@@ -94,7 +114,7 @@ curl -X POST "https://platform.authenta.ai/api/v1/jobs" \
   -d '{
     "taskTypeId": "1",
     "inputs": [
-      { "slotName": "original", "fileName": "photo.jpg", "contentType": "image/jpeg", "sizeBytes": 414241 }
+      { "slotName": "original", "fileName": "test.jpg", "contentType": "image/jpeg", "sizeBytes": 414241 }
     ]
   }'
 ```
@@ -104,7 +124,7 @@ curl -X POST "https://platform.authenta.ai/api/v1/jobs" \
 ```json
 {
   "job": {
-    "id": "3140",
+    "id": "1",
     "tenantId": "6f1c2a4e-1d2b-4c3d-9e8f-0a1b2c3d4e5f",
     "taskTypeId": "1",
     "status": "initiated",
@@ -116,14 +136,14 @@ curl -X POST "https://platform.authenta.ai/api/v1/jobs" \
   "inputs": [
     {
       "slotName": "original",
-      "uploadUrl": "https://<bucket>.s3.us-east-1.amazonaws.com/jobs/3140/input/original.media?X-Amz-Algorithm=...",
+      "uploadUrl": "https://<bucket>.s3.us-east-1.amazonaws.com/jobs/1/input/original.media?X-Amz-Algorithm=...",
       "uploadUrlExpiresAt": "2026-10-14T16:10:51.040Z"
     }
   ]
 }
 ```
 
-The job's `cost` in credits is deducted from your balance when the job is created. See [Quotas & Credits](/api/quotas-and-credits).
+The job's `cost` in credits is charged **when the job is created**, and refunded in full if the job is cancelled, deleted before processing, or fails. See [Quotas & Credits](/api/quotas-and-credits#when-credits-are-charged-and-refunded).
 
 ### Errors
 
@@ -142,17 +162,19 @@ The job's `cost` in credits is deducted from your balance when the job is create
 ```bash
 curl -X PUT "<uploadUrl>" \
   -H "Content-Type: image/jpeg" \
-  --upload-file photo.jpg
+  --upload-file test.jpg
 ```
 
 :::warning
 - `Content-Type` must be exactly the `contentType` you sent in step 1.
 - The file must be exactly `sizeBytes` bytes long.
 - Quote the URL — it contains `&`.
-- Upload URLs are short-lived: **30 seconds** for small files, longer for large ones (see `uploadUrlExpiresAt`). Upload immediately after creating the job; if the URL expires, create a new job.
+- Upload URLs are short-lived: **30 seconds** for small files, longer for large ones (see `uploadUrlExpiresAt`). Upload immediately after creating the job.
 
 Storage rejects the upload if any of these don't match, and `finalize` then fails with `UPLOAD_NOT_FOUND`.
 :::
+
+If the upload URL expires before you upload, [cancel the job](#cancel-a-job) (its credits are refunded) and create a new one. Jobs left in `initiated` are cleaned up after about 20 minutes: if every file was uploaded, the job is finalized for you; otherwise it is deleted and its credits are refunded.
 
 ## 3. Finalize the job
 
@@ -161,7 +183,7 @@ Storage rejects the upload if any of these don't match, and `finalize` then fail
 Call once every input is uploaded. The job moves to `queued`.
 
 ```bash
-curl -X POST "https://platform.authenta.ai/api/v1/jobs/3140/finalize" \
+curl -X POST "https://platform.authenta.ai/api/v1/jobs/1/finalize" \
   -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
@@ -227,7 +249,7 @@ curl "https://platform.authenta.ai/api/v1/jobs?limit=10&status=completed" \
 {
   "data": [
     {
-      "id": "3140",
+      "id": "1",
       "tenantId": "6f1c2a4e-1d2b-4c3d-9e8f-0a1b2c3d4e5f",
       "taskTypeId": "1",
       "status": "completed",
@@ -250,7 +272,7 @@ curl "https://platform.authenta.ai/api/v1/jobs?limit=10&status=completed" \
 Returns the [job object](#the-job-object) plus its `artifacts`: the media you uploaded and any files the model produced.
 
 ```bash
-curl "https://platform.authenta.ai/api/v1/jobs/3140" \
+curl "https://platform.authenta.ai/api/v1/jobs/1" \
   -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
@@ -258,7 +280,7 @@ curl "https://platform.authenta.ai/api/v1/jobs/3140" \
 
 ```json
 {
-  "id": "3140",
+  "id": "1",
   "tenantId": "6f1c2a4e-1d2b-4c3d-9e8f-0a1b2c3d4e5f",
   "taskTypeId": "1",
   "status": "completed",
@@ -268,13 +290,13 @@ curl "https://platform.authenta.ai/api/v1/jobs/3140" \
   "result": { "isFake": false, "confidence": 0.98 },
   "artifacts": [
     {
-      "id": "8812",
+      "id": "1",
       "kind": "input",
       "slotName": "original",
       "status": "completed",
       "contentType": "image/jpeg",
-      "metadata": { "fileName": "photo.jpg", "sizeBytes": 414241 },
-      "downloadUrl": "https://<bucket>.s3.us-east-1.amazonaws.com/jobs/3140/input/original.media?X-Amz-...",
+      "metadata": { "fileName": "test.jpg", "sizeBytes": 414241 },
+      "downloadUrl": "https://<bucket>.s3.us-east-1.amazonaws.com/jobs/1/input/original.media?X-Amz-...",
       "createdAt": "2026-10-14T16:10:21.040Z"
     }
   ]
@@ -332,11 +354,7 @@ If a `downloadUrl` has expired, call `GET /jobs/{id}` again for fresh URLs.
 { "isDeepfake": true, "totalFaces": 2, "deepfakeFaces": 1 }
 ```
 
-**Failed jobs**: `result` describes the failure:
-
-```json
-{ "error": "OutOfMemoryError", "message": "Worker ran out of GPU memory during video analysis" }
-```
+**Failed jobs**: `result` stays `null`. A job is retried automatically before it is marked `failed`, and its credits are refunded. Create a new job to try again; if it keeps failing, contact support with the job ID.
 
 Other task types return model-specific fields; branch on `status` before reading `result`.
 
@@ -346,10 +364,10 @@ Other task types return model-specific fields; branch on `status` before reading
 
 ### `POST /jobs/{id}/cancel`
 
-Cancels a job in `initiated` or `queued` status. Jobs that are already processing cannot be cancelled.
+Cancels a job in `initiated` or `queued` status and refunds its credits. Jobs that are already processing cannot be cancelled. Requires the **Delete** permission.
 
 ```bash
-curl -X POST "https://platform.authenta.ai/api/v1/jobs/3140/cancel" \
+curl -X POST "https://platform.authenta.ai/api/v1/jobs/1/cancel" \
   -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
@@ -368,10 +386,10 @@ The [job object](#the-job-object) with `"status": "cancelled"`.
 
 ### `DELETE /jobs/{id}`
 
-Deletes the job's stored files. Jobs that are currently processing cannot be deleted.
+Deletes the job's stored files. Jobs that are currently processing cannot be deleted. A job deleted while still `initiated` or `queued` is cancelled first, so its credits are refunded.
 
 ```bash
-curl -X DELETE "https://platform.authenta.ai/api/v1/jobs/3140" \
+curl -X DELETE "https://platform.authenta.ai/api/v1/jobs/1" \
   -H "Authorization: Bearer api_xxxxxxxx..."
 ```
 
@@ -422,8 +440,10 @@ Errors common to every endpoint:
 
 | Status | `name` | Cause |
 |---|---|---|
-| `401` | `UNAUTHENTICATED` | No `Authorization` header |
+| `401` | `UNAUTHENTICATED` | No `Authorization` header, or it isn't `Bearer api_...` |
 | `401` | `INVALID_API_KEY` | Revoked, expired or unknown API key |
+| `403` | `FORBIDDEN` | The key lacks the permission the endpoint needs (see the [endpoint table](#jobs-api-reference)) |
+| `500` | `INTERNAL_ERROR` | Unexpected server error; safe to retry with backoff |
 
 # Next steps
 

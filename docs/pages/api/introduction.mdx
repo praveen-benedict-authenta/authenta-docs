@@ -32,80 +32,50 @@ Getting started with the API is simple:
 All API calls require one header:
 
 ```http
-Authorization: Bearer api__xxxxxxxx...
+Authorization: Bearer api_xxxxxxxx...
 ```
 
 Your API key uniquely identifies and authenticates your requests.
 The **API key is shown only once**, so make sure to store it securely.
 
-Authenta uses a simple bearer token authentication system suitable for on-prem and SaaS environments.
+Authenta uses a simple bearer token authentication system.
 
-## API Operations & Request Types
+## Permissions
 
-Authenta internally classifies requests into two types:
+Each API key carries one or more permissions:
 
-### **Query Requests**
+| Permission | Lets the key |
+| ---------- | ------------ |
+| **Read**   | List jobs, read results and download files |
+| **Write**  | Create and finalize jobs |
+| **Delete** | Cancel and delete jobs |
 
-- Correspond to `GET` routes
-- Used for reading data
+See [Managing API Keys](/api/managing-api-keys) for details.
 
-Examples:
+## Credits
 
-- Fetch all media
-- Fetch a media item by ID
+Authenta bills media analysis in credits, shared between the web console and the API:
 
-### **Mutation Requests**
+- Each job costs a fixed number of credits, charged when the job is created
+- Cancelled jobs, and jobs that fail, are refunded automatically
+- Reading, listing and deleting jobs is free
 
-- Correspond to `POST`, `PUT`, `DELETE` routes
-- Used for modifying data
+See [Quotas & Credits](/api/quotas-and-credits) for pricing and refund rules.
 
-Examples:
+## OpenAPI specification
 
-- Upload media
-- Delete media
-
-## Credits System
-
-Authenta uses a credit-based billing system for all media operations.
-
-- When you upload or process media **via the API**, credits are consumed
-- Credit deduction happens exactly the same way as when using the Authenta UI
-- Query-only endpoints (such as fetching metadata) **do not** consume credits
-
-Credits and quotas operate independently:
-
-| Resource    | Purpose                                        |
-| ----------- | ---------------------------------------------- |
-| **Credits** | Charged for media processing                   |
-| **Quotas**  | Limit the number of API calls (query/mutation) |
-
-A user can have available API quota but insufficient credits required for processing.
-
-## TypeScript API Types
-
-Authenta ships first-class TypeScript types describing all API request and response structures.
-These types are included in the `api-types.d.ts` file and define:
-
-- Media object shapes
-- Upload request body schema
-- Detection metadata
-- Error responses
-- Pagination types
-- API route definitions
-
-This ensures type-safe usage for integrations built in TypeScript or Node.js.
-(If needed, you can import these types directly into your application.)
+The full API is described in an OpenAPI 3 spec: <a href="/openapi/authenta-api.yaml" download>authenta-api.yaml</a>. Import it into Postman or any OpenAPI tool, generate a typed client from it, or try the requests in the [API Explorer](/api/explorer).
 
 ## Supported API Endpoints
 
 The current set of public API routes includes:
 
-- **GET `/api/v1/jobs`** — List All Jobs _(Query)_
-- **GET `/api/v1/jobs/{id}`** — Get Job Details _(Query)_
-- **POST `/api/v1/jobs`** — Create Job & Upload Media _(Mutation)_
-- **POST `/api/v1/jobs/{id}/finalize`** — Finalize Job & Queue Processing _(Mutation)_
-- **POST `/api/v1/jobs/{id}/cancel`** — Cancel Job _(Mutation)_
-- **DELETE `/api/v1/jobs/{id}`** — Delete Job _(Mutation)_
+- **POST `/api/v1/jobs`**: Create a job and get upload URLs _(Write)_
+- **POST `/api/v1/jobs/{id}/finalize`**: Queue the job for processing _(Write)_
+- **GET `/api/v1/jobs`**: List jobs _(Read)_
+- **GET `/api/v1/jobs/{id}`**: Get a job with its result and files _(Read)_
+- **POST `/api/v1/jobs/{id}/cancel`**: Cancel a job _(Delete)_
+- **DELETE `/api/v1/jobs/{id}`**: Delete a job _(Delete)_
 
 Full details are available in [Jobs API References](/api/reference/jobs)
 
@@ -113,8 +83,8 @@ Full details are available in [Jobs API References](/api/reference/jobs)
 
 To begin integrating the API:
 
-1. [Continue to **Requesting API Access**](/api/api-access)
-2. [Then **Generate API Keys**](/api/managing-api-keys)
-3. [Finally, follow **Using the API**](/api/making-api-calls)
+1. [Create an API key](/api/api-access) (no approval needed)
+2. [Learn how authentication works](/api/authentication)
+3. [Run your first job](/api/making-api-calls)
 
 Authenta’s API enables powerful automated trust-analysis workflows, and this section of the documentation will guide you through each step of the integration.

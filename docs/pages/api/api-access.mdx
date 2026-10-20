@@ -40,32 +40,28 @@ A descriptive label to help you identify the purpose of the key.
 Examples:
 
 - `Backend-Server-Key`
-- `Mobile-App-Key`
+- `Batch-Jobs-Key`
 - `Data-Pipeline-Key`
 
 ### 2. Permissions
 
 Select which operations this key is allowed to perform:
 
-| Permission | Allows                            |
-| ---------- | --------------------------------- |
-| **Read**   | Fetching media and metadata       |
-| **Write**  | Uploading media                   |
-| **Delete** | Removing media records            |
+| Permission | Allows |
+| ---------- | ------ |
+| **Read**   | Listing jobs, reading results and downloading files |
+| **Write**  | Creating and finalizing jobs (spends credits) |
+| **Delete** | Cancelling and deleting jobs |
 
 You can select one or multiple permissions based on your integration needs.
 
-If a key does not have the required permission, API requests will return:
-
-```
-403 — Forbidden (You are not authorized)
-```
+If a key does not have the required permission, API requests return `403` `FORBIDDEN`.
 
 ## Generated Credentials
 
 Once created, your API key generates:
 
-- **API Key** – A token in the format `api__xxxxxxxx...` used to authenticate requests
+- **API Key** – A token in the format `api_xxxxxxxx...` used to authenticate requests
 
 Example:
 
@@ -85,7 +81,6 @@ From the **Settings → API Keys** page, you can see:
 - Key name and creation date
 - Last used date
 - Permissions (Read, Write, Delete)
-- Usage metrics
 
 ### Regenerating a Key
 
@@ -103,10 +98,11 @@ To disable a key:
 1. Go to **Settings → API Keys**
 2. Click the **Revoke** button
 3. The key will be deactivated immediately
-4. Any API calls using this key will return `401 – Unauthorized`
+4. Any API calls using this key will return `401` `INVALID_API_KEY`
 
 ## API Key Best Practices
 
+- **Use keys only from your servers** – Never embed a key in a mobile or browser app; see [Keeping keys safe](/api/managing-api-keys#keeping-keys-safe)
 - **Do not commit keys to version control** – Use environment variables or secret managers
 - **Regenerate keys regularly** – Especially if exposed or after staff changes
 - **Use separate keys per environment** – Keep production, staging, and testing keys separate

@@ -22,15 +22,6 @@ servers:
     description: Authenta cloud
   - url: https://platform-dev.authenta.ai/api/v1
     description: Authenta cloud (development) — use an API key created on platform-dev.authenta.ai
-  - url: '{scheme}://{host}/api/v1'
-    description: On-prem / self-hosted
-    variables:
-      scheme:
-        enum: [https, http]
-        default: https
-      host:
-        default: authenta.example.internal
-        description: Your Authenta server's host (and port, if not the default)
 
 tags:
   - name: Upload workflow
@@ -56,7 +47,7 @@ components:
           description: Input slot name. `original` for every current task type.
         fileName:
           type: string
-          example: photo.jpg
+          example: test.jpg
         contentType:
           type: string
           example: image/jpeg
@@ -106,7 +97,7 @@ components:
       properties:
         id:
           type: string
-          example: "3140"
+          example: "1"
         tenantId:
           type: string
           format: uuid
@@ -293,7 +284,7 @@ paths:
               taskTypeId: "1"
               inputs:
                 - slotName: original
-                  fileName: photo.jpg
+                  fileName: test.jpg
                   contentType: image/jpeg
                   sizeBytes: 414241
       responses:
@@ -378,32 +369,10 @@ paths:
         **On this page:** leave the fields empty and choose the file. The request goes to the `uploadUrl`
         from Step 1 with the `Content-Type` declared there; the body type selected below is ignored.
 
-        **Manual use (on-prem servers with local file storage only):** fill `path` (decoded), `expires` and
-        `sig` from the `uploadUrl`, pick the body type matching Step 1's `contentType`, and choose the file.
-
-        With cloud storage, `uploadUrl` points at storage, not the Authenta API — outside this page, use
+        `uploadUrl` points at storage, not the Authenta API — outside this page, use
         `curl -X PUT -H "Content-Type: <contentType>" --upload-file <file> "<uploadUrl>"`.
       operationId: uploadFile
       security: []
-      parameters:
-        - name: path
-          in: query
-          required: false
-          description: "Manual mode only: `path` value from `uploadUrl` (decoded)."
-          schema:
-            type: string
-        - name: expires
-          in: query
-          required: false
-          description: "Manual mode only: `expires` value from `uploadUrl`."
-          schema:
-            type: integer
-        - name: sig
-          in: query
-          required: false
-          description: "Manual mode only: `sig` value from `uploadUrl`."
-          schema:
-            type: string
       requestBody:
         required: true
         description: The raw file.
@@ -438,9 +407,7 @@ paths:
               format: binary
       responses:
         '200':
-          description: Stored (cloud storage). Continue with Step 3.
-        '204':
-          description: Stored (on-prem local storage). Continue with Step 3.
+          description: Stored. Continue with Step 3.
         '403':
           description: Rejected by cloud storage — expired URL, or size / content type differ from Step 1.
 

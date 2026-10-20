@@ -64,85 +64,25 @@ print(response.json())
 
 # Authentication Error Responses
 
-Authenta uses a structured error format containing:
+Errors use the [standard error shape](/api/reference/jobs#errors): `rid` (request ID), `name` (the error code to branch on) and `message`.
 
-- **code** — unique error identifier
-- **statusCode** — HTTP status code
-- **message** — human-readable explanation
-
-Below are the authentication-related error codes your API may return.
-
-## ❌ INVALID_API_KEY — Invalid or Missing API Key
-
-Returned when the API key is missing, invalid, revoked, or malformed.
-
-| Field            | Value                          |
-| ---------------- | ------------------------------ |
-| **code**         | `INVALID_API_KEY`              |
-| **statusCode**   | `401`                          |
-| **message**      | `API key authentication failed` |
+| Status | `name` | When |
+|---|---|---|
+| `401` | `UNAUTHENTICATED` | No `Authorization` header, or it isn't in the form `Bearer api_...` |
+| `401` | `INVALID_API_KEY` | The key is unknown, revoked or expired |
+| `403` | `FORBIDDEN` | The key is valid but lacks the permission the endpoint needs (for example a Read-only key calling `POST /jobs`) |
 
 ### Example Response
 
 ```json
 {
-  "code": "INVALID_API_KEY",
-  "statusCode": 401,
+  "rid": "9b6f1d2e-5c1a-4b7e-8f3d-2a1c0e9d8b7a",
+  "name": "INVALID_API_KEY",
   "message": "API key authentication failed"
 }
 ```
 
-## ❌ FORBIDDEN — Missing Required Permissions
-
-Returned when the key is valid but does not have the required permission
-(e.g., a key with only READ permission attempts a DELETE or POST).
-
-| Field            | Value                                 |
-| ---------------- | ------------------------------------- |
-| **code**         | `FORBIDDEN`                           |
-| **statusCode**   | `403`                                 |
-| **message**      | `You don't have permission to access this` |
-
-### Example Response
-
-```json
-{
-  "code": "FORBIDDEN",
-  "statusCode": 403,
-  "message": "You don't have permission to access this"
-}
-```
-
-## ❌ INSUFFICIENT_BALANCE — Insufficient Credit Balance
-
-Returned when your account does not have enough credits to perform the requested operation.
-
-| Field            | Value                                                      |
-| ---------------- | ---------------------------------------------------------- |
-| **code**         | `INSUFFICIENT_BALANCE`                                     |
-| **statusCode**   | `402`                                                      |
-| **message**      | `Insufficient balance. Please top up or enable pay-as-you-go billing` |
-
-### Example Response
-
-```json
-{
-  "code": "INSUFFICIENT_BALANCE",
-  "statusCode": 402,
-  "message": "Insufficient balance. Please top up or enable pay-as-you-go billing"
-}
-```
-
-# Error Handling Flow
-
-When the API receives a request, it performs the following checks in order:
-
-1. **Validate Authorization header**
-2. **Validate API key format**
-3. **Check permissions (Read / Write / Delete)**
-4. **Check credit balance (for media processing)**
-
-Depending on which check fails, the appropriate error code is returned.
+None of these succeed on retry. Fix the key or its permissions in **Settings → API Keys**. Credit errors (`402`) are covered in [Quotas & Credits](/api/quotas-and-credits#credit-errors).
 
 # Best Practices for Authentication
 
@@ -159,7 +99,11 @@ Production, staging, CI, automation, etc.
 
 You can regenerate your API key anytime for enhanced security.
 
-### 📉 4. Monitor usage & credit balance
+### 📱 4. Never put a key in a mobile app or browser
+
+Anything shipped to a device can be extracted. Call Authenta from your own backend instead; see [Keeping keys safe](/api/managing-api-keys#keeping-keys-safe).
+
+### 📉 5. Monitor usage & credit balance
 
 Track your credit usage to avoid running out of credits mid-operation.
 

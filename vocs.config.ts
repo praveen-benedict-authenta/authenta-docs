@@ -8,7 +8,8 @@ export default defineConfig({
     accentColor: '#6968ae',
   },
   topNav: [
-    { text: 'Documentation', link: '/on-prem/overview', match: '/on-prem' },
+    // On-prem docs are hidden for now; the pages live in docs/drafts/on-prem
+    // { text: 'Documentation', link: '/on-prem/overview', match: '/on-prem' },
     { text: 'API', link: '/api/introduction', match: '/api' },
     { text: 'API Explorer', link: '/api/explorer' },
     { text: 'Try Authenta', link: 'https://platform.authenta.ai' },
@@ -21,48 +22,48 @@ export default defineConfig({
         },
         {
           text: 'Support',
-          link: '/on-prem/support',
+          link: 'mailto:support@authenta.ai',
         },
       ],
     },
   ],
   rootDir: 'docs',
   sidebar: {
-    '/on-prem': [
-      {
-        text: 'Getting Started',
-        collapsed: false,
-        items: [
-          { text: 'Overview', link: '/on-prem/overview' },
-          { text: 'Introduction', link: '/on-prem/introduction' },
-        ],
-      },
-      {
-        text: 'Deployment',
-        collapsed: false,
-        items: [
-          { text: 'Architecture', link: '/on-prem/architecture' },
-          { text: 'Prerequisites', link: '/on-prem/prerequisites' },
-          { text: 'Installation Setup', link: '/on-prem/installation-setup' },
-          { text: 'Configuration', link: '/on-prem/configuration' },
-        ],
-      },
-      {
-        text: 'Integrations',
-        collapsed: false,
-        items: [{ text: 'Using Authenta', link: '/on-prem/using-authenta' }],
-      },
-      {
-        text: 'Operations',
-        collapsed: false,
-        items: [
-          { text: 'Maintenance & Updates', link: '/on-prem/maintenance-updates' },
-          { text: 'Security & Compliance', link: '/on-prem/security-compliance' },
-          { text: 'Troubleshooting', link: '/on-prem/troubleshooting' },
-          { text: 'Support', link: '/on-prem/support' },
-        ],
-      },
-    ],
+    // '/on-prem': [
+    //   {
+    //     text: 'Getting Started',
+    //     collapsed: false,
+    //     items: [
+    //       { text: 'Overview', link: '/on-prem/overview' },
+    //       { text: 'Introduction', link: '/on-prem/introduction' },
+    //     ],
+    //   },
+    //   {
+    //     text: 'Deployment',
+    //     collapsed: false,
+    //     items: [
+    //       { text: 'Architecture', link: '/on-prem/architecture' },
+    //       { text: 'Prerequisites', link: '/on-prem/prerequisites' },
+    //       { text: 'Installation Setup', link: '/on-prem/installation-setup' },
+    //       { text: 'Configuration', link: '/on-prem/configuration' },
+    //     ],
+    //   },
+    //   {
+    //     text: 'Integrations',
+    //     collapsed: false,
+    //     items: [{ text: 'Using Authenta', link: '/on-prem/using-authenta' }],
+    //   },
+    //   {
+    //     text: 'Operations',
+    //     collapsed: false,
+    //     items: [
+    //       { text: 'Maintenance & Updates', link: '/on-prem/maintenance-updates' },
+    //       { text: 'Security & Compliance', link: '/on-prem/security-compliance' },
+    //       { text: 'Troubleshooting', link: '/on-prem/troubleshooting' },
+    //       { text: 'Support', link: '/on-prem/support' },
+    //     ],
+    //   },
+    // ],
     '/api': [
       {
         text: 'Overview',
