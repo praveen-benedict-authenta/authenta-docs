@@ -1,6 +1,17 @@
+import { createHash } from 'node:crypto';
 import { defineConfig } from 'vocs';
 
+/** Comma-separated IPs from the DEV_EXPLORER_IPS secret; only their hashes reach the site (see docs/components/internal-access.ts) */
+const devExplorerIpHashes = (process.env.DEV_EXPLORER_IPS ?? '')
+  .split(',')
+  .map(ip => ip.trim())
+  .filter(Boolean)
+  .map(ip => createHash('sha256').update(ip).digest('hex'));
+
 export default defineConfig({
+  vite: {
+    define: { __DEV_EXPLORER_IP_HASHES__: JSON.stringify(devExplorerIpHashes) },
+  },
   logoUrl: '/logo.png',
   title: 'Authenta Docs',
   description: 'Deepfake & Image Forgery Detection Service',

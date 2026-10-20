@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import 'swagger-ui-dist/swagger-ui.css';
 
+import { isInternalVisitor } from './internal-access';
+
 /** Spec served from docs/public */
 const SPEC_URL = '/openapi/authenta-api.yaml';
 const STORAGE_KEY = 'authenta-api-explorer';
+const DEV_STORAGE_KEY = 'authenta-api-explorer-dev';
+/** Added to the Servers dropdown only for allow-listed IPs that turn the toggle on (see internal-access.ts) */
+const DEV_SERVER = {
+  url: 'https://platform-dev.authenta.ai/api/v1',
+  description: 'Authenta cloud (development) — use an API key created on platform-dev.authenta.ai',
+};
 
 type Remembered = {
   jobId: string;
@@ -34,6 +42,22 @@ function saveRemembered(value: Remembered | null) {
   }
 }
 
+function loadDevEnabled(): boolean {
+  try {
+    return localStorage.getItem(DEV_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function saveDevEnabled(value: boolean) {
+  try {
+    localStorage.setItem(DEV_STORAGE_KEY, String(value));
+  } catch {
+    /* storage unavailable — the toggle resets on reload */
+  }
+}
+
 function pathOf(url: string): string {
   try {
     return new URL(url, window.location.href).pathname.replace(/\/+$/, '');
@@ -54,11 +78,33 @@ export function ApiExplorer() {
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [loadFailed, setLoadFailed] = useState(false);
+  const uiRef = useRef<any>(null);
+  const devEnabledRef = useRef(false);
+  const [showDevToggle, setShowDevToggle] = useState(false);
+  const [devEnabled, setDevEnabled] = useState(false);
 
   const remember = (value: Remembered | null) => {
     rememberedRef.current = value;
     setRemembered(value);
     saveRemembered(value);
+  };
+
+  /** Adds or removes the development server in the Servers dropdown, falling back to prod when it's removed */
+  const applyDevServer = (enabled: boolean) => {
+    const ui = uiRef.current;
+    const spec = ui?.specSelectors.specJson().toJS();
+    if (!spec) return;
+    const servers = (spec.servers ?? []).filter((server: { url: string }) => server.url !== DEV_SERVER.url);
+    if (enabled) servers.push(DEV_SERVER);
+    ui.specActions.updateJsonSpec({ ...spec, servers });
+    if (!enabled && ui.oas3Selectors.selectedServer() === DEV_SERVER.url) ui.oas3Actions.setSelectedServer(servers[0]?.url);
+  };
+
+  const toggleDev = (enabled: boolean) => {
+    devEnabledRef.current = enabled;
+    setDevEnabled(enabled);
+    saveDevEnabled(enabled);
+    applyDevServer(enabled);
   };
 
   useEffect(() => {
@@ -147,11 +193,17 @@ export function ApiExplorer() {
     };
 
     let cancelled = false;
+    isInternalVisitor().then(allowed => {
+      if (cancelled || !allowed) return;
+      setShowDevToggle(true);
+      if (loadDevEnabled()) toggleDev(true);
+    });
+
     import('swagger-ui-dist/swagger-ui-es-bundle.js')
       .then(module => {
         if (cancelled || !containerRef.current) return;
         const SwaggerUI = (module as any).default ?? module;
-        SwaggerUI({
+        uiRef.current = SwaggerUI({
           url: SPEC_URL,
           domNode: containerRef.current,
           deepLinking: true,
@@ -160,6 +212,10 @@ export function ApiExplorer() {
           displayRequestDuration: true,
           requestInterceptor,
           responseInterceptor,
+          /** The IP check can finish before the spec loads, so add the dev server once it has */
+          onComplete: () => {
+            if (devEnabledRef.current) applyDevServer(true);
+          },
         });
       })
       .catch(() => setLoadFailed(true));
@@ -209,6 +265,12 @@ export function ApiExplorer() {
           </span>
         )}
       </div>
+      {showDevToggle && (
+        <label className="api-explorer__dev">
+          <input type="checkbox" checked={devEnabled} onChange={event => toggleDev(event.target.checked)} />
+          Show the development server (<code>platform-dev.authenta.ai</code>) in the Servers dropdown
+        </label>
+      )}
       {loadFailed && <p className="api-explorer__error">The API explorer failed to load. Reload the page to try again.</p>}
       <div className="api-explorer__swagger" ref={containerRef} />
       <style>{`
@@ -223,6 +285,10 @@ export function ApiExplorer() {
         .api-explorer__bar button {
           margin-left: auto; background: #374151; color: #f9fafb; border: 1px solid #4b5563;
           border-radius: 4px; padding: 3px 10px; cursor: pointer;
+        }
+        .api-explorer__dev {
+          display: flex; gap: 8px; align-items: center; margin-bottom: 16px; padding: 8px 16px;
+          border: 1px dashed #f59e0b; border-radius: 8px; font-size: 13px; cursor: pointer;
         }
         .api-explorer__error { color: #fca5a5; flex-basis: 100%; }
         .api-explorer__swagger { background: #ffffff; color: #3b4151; border-radius: 8px; padding: 8px 0; }
