@@ -1,6 +1,6 @@
 # Quotas & Credits
 
-Authenta bills media analysis in **credits**. Credits are shared between the web console and the API, and every job costs a fixed number of credits that you can see before it runs.
+Authenta bills media analysis in **credits**. Credits are shared between the web console and the API, and every job's cost is set when it is created, before it runs.
 
 # What costs credits
 

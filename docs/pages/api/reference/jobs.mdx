@@ -256,7 +256,7 @@ curl "https://platform.authenta.ai/api/v1/jobs?limit=10&status=completed" \
       "cost": 1,
       "createdAt": "2026-10-14T16:10:21.040Z",
       "updatedAt": "2026-10-14T16:11:02.511Z",
-      "result": { "isFake": false, "confidence": 0.98 }
+      "result": { "isFake": false, "confidencePercent": 85.93, "fakeConfidencePercent": 14.07, "realConfidencePercent": 85.93 }
     }
   ],
   "total": 42,
@@ -287,7 +287,7 @@ curl "https://platform.authenta.ai/api/v1/jobs/1" \
   "cost": 1,
   "createdAt": "2026-10-14T16:10:21.040Z",
   "updatedAt": "2026-10-14T16:11:02.511Z",
-  "result": { "isFake": false, "confidence": 0.98 },
+  "result": { "isFake": false, "confidencePercent": 85.93, "fakeConfidencePercent": 14.07, "realConfidencePercent": 85.93 },
   "artifacts": [
     {
       "id": "1",
@@ -334,29 +334,108 @@ If a `downloadUrl` has expired, call `GET /jobs/{id}` again for fresh URLs.
 
 ## Result shapes
 
-`result` is `null` until the job finishes, and its shape depends on the task type.
+`result` is `null` until the job finishes. Every detection result has `isFake`; the other fields depend on the task type. Branch on `status` before reading `result`, and ignore fields you don't recognize: new fields can be added at any time.
 
-**AI image / audio / video detection**
+### Common fields
+
+| Field | Type | Description |
+|---|---|---|
+| `isFake` | boolean | The verdict. `true` when `tag` is `likely_fake` or `fake` |
+| `confidencePercent` | number | Confidence (0–100) in the verdict that `isFake` reports |
+| `fakeConfidencePercent` | number | Confidence (0–100) that the media is fake. Only on some task types |
+| `realConfidencePercent` | number | Confidence (0–100) that the media is real. Only on some task types |
+| `tag` | string | Confidence tier: `real`, `likely_real`, `likely_fake` or `fake` |
+| `tagBoundaries` | object | The boundaries used to compute `tag` for this job (see below) |
+| `modelVersion` | string | Version of the model that produced the result |
+
+`tag`, `tagBoundaries` and `modelVersion` are saved when the job runs and are never recomputed, so jobs that ran before these fields were introduced don't have them. Treat all three as optional.
+
+### Tags
+
+`tag` places the fake confidence in one of four tiers. `tagBoundaries` holds the upper bound of each tier, as set for the task type when the job ran:
 
 ```json
-{ "isFake": true, "confidence": 0.91 }
+{ "real": 30, "likelyReal": 50, "likelyFake": 75 }
 ```
 
-**Image forgery detection**
+| `tag` | `fakeConfidencePercent` | `isFake` |
+|---|---|---|
+| `real` | at or below `tagBoundaries.real` | `false` |
+| `likely_real` | at or below `tagBoundaries.likelyReal` | `false` |
+| `likely_fake` | at or below `tagBoundaries.likelyFake` | `true` |
+| `fake` | above `tagBoundaries.likelyFake` | `true` |
+
+Boundaries differ between task types, so compare `tag` rather than hard-coding a confidence threshold. Results tagged `likely_real` or `likely_fake` are the ones worth a manual review.
+
+### By task type
+
+**`ai-image-detection`**
 
 ```json
-{ "isTampered": true, "confidence": 0.87 }
+{
+  "isFake": false,
+  "confidencePercent": 89.6,
+  "fakeConfidencePercent": 10.4,
+  "realConfidencePercent": 89.6,
+  "tag": "real",
+  "tagBoundaries": { "real": 30, "likelyReal": 50, "likelyFake": 75 },
+  "modelVersion": "v2.1.0"
+}
 ```
 
-**Face-swap detection**
+**`ai-video-detection`, `ekyc-deepfake`, `face-liveness-detection`, `image-forgery-detection`**
 
 ```json
-{ "isDeepfake": true, "totalFaces": 2, "deepfakeFaces": 1 }
+{ "isFake": true, "confidencePercent": 98.68 }
 ```
+
+**`ai-audio-detection`**: also returns `windows`, the real confidence for each 4-second window of the clip. The spectrogram images are available as `image` [artifacts](#downloading-files); the `spectrogram` paths inside `result` are internal and can't be downloaded.
+
+```json
+{
+  "isFake": false,
+  "confidencePercent": 54.18,
+  "windows": {
+    "0-4s": { "RealConfidencePercent": 15.62, "spectrogram": "/app/jobs/560/output/spectrogram_window_0.png" },
+    "4-8s": { "RealConfidencePercent": 98.02, "spectrogram": "/app/jobs/560/output/spectrogram_window_1.png" }
+  },
+  "spectrogram": "/app/jobs/560/output/spectrogram.png"
+}
+```
+
+**`faceswap-detection`**: `deepFakes` is the number of the `totalFaces` detected faces that are face-swapped.
+
+```json
+{ "isFake": false, "deepFakes": 0, "totalFaces": 2 }
+```
+
+**`document-intelligence`**
+
+```json
+{ "isFake": false, "isTampered": false }
+```
+
+**`pdf-tampering-detection`**: page counts break down how each page was assessed.
+
+```json
+{
+  "isFake": true,
+  "verdict": "TAMPERED",
+  "confidencePercent": 82.9,
+  "fakeConfidencePercent": 82.9,
+  "realConfidencePercent": 17.1,
+  "totalPages": 1,
+  "fakePages": 1,
+  "editedPages": 0,
+  "scannedPages": 1,
+  "outOfScopePages": 0,
+  "aiCheckFailedPages": 0
+}
+```
+
+Other task types (`face-intelligence`, `face-embedding`, `audio-splitter`) return model-specific fields.
 
 **Failed jobs**: `result` stays `null`. A job is retried automatically before it is marked `failed`, and its credits are refunded. Create a new job to try again; if it keeps failing, contact support with the job ID.
-
-Other task types return model-specific fields; branch on `status` before reading `result`.
 
 # Managing jobs
 
@@ -412,7 +491,7 @@ curl -X DELETE "https://platform.authenta.ai/api/v1/jobs/1" \
 | `status` | string | See [Job lifecycle](#job-lifecycle) |
 | `cost` | integer | Credits charged for the job |
 | `createdAt` / `updatedAt` | ISO 8601 date | Timestamps |
-| `result` | object \| null | The verdict — see [Result shapes](#result-shapes) |
+| `result` | object \| null | The verdict: `isFake`, confidence fields, `tag`, `tagBoundaries` and `modelVersion`, plus task-specific fields. See [Result shapes](#result-shapes) |
 
 # Errors
 
