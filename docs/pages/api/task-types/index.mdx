@@ -1,0 +1,90 @@
+# Task Types
+
+A **task type** is one detection model. Every job runs exactly one task type, chosen with `taskTypeId` when you [create the job](/api/reference/jobs#1-create-a-job). This page explains how to read results, which is the same for every task type, and lists all task types. Each task type also has its own page with its inputs, limits, result fields and artifacts.
+
+# Reading results
+
+Every scored detection result carries one score, `fakeConfidencePercent`, and a `tag` derived from it using the task type's boundaries. Use `fakeConfidencePercent` or `tag` for decisions; never threshold on `confidencePercent`.
+
+## Result fields
+
+| Field | Type | Meaning |
+|---|---|---|
+| `fakeConfidencePercent` | number, 0–100 | The model's estimate that the media is AI-generated or manipulated. Higher always means more likely fake. The primary score |
+| `realConfidencePercent` | number, 0–100 | `100 - fakeConfidencePercent` |
+| `confidencePercent` | number, 0–100 | Confidence in the returned verdict: equals `realConfidencePercent` when `isFake` is `false` and `fakeConfidencePercent` when it is `true`. Kept for compatibility |
+| `tag` | string | `real`, `likely_real`, `likely_fake` or `fake` |
+| `tagBoundaries` | object | The boundaries that produced `tag`, e.g. `{ "real": 30, "likelyReal": 50, "likelyFake": 75 }` |
+| `isFake` | boolean | `true` when `tag` is `likely_fake` or `fake` |
+| `modelVersion` | string | Version of the model that produced this result |
+
+Task types that don't produce a single score, such as [`face-intelligence`](/api/task-types/face-intelligence) and the utilities, return their own fields instead. Each task type's page says whether its results are tagged.
+
+## Tags
+
+| Tag | `fakeConfidencePercent` (default boundaries) | `isFake` | Suggested action |
+|---|---|---|---|
+| `real` | 0 to 30 | `false` | Auto-accept |
+| `likely_real` | above 30, up to 50 | `false` | Accept or review, depending on your risk appetite |
+| `likely_fake` | above 50, up to 75 | `true` | Manual review |
+| `fake` | above 75 | `true` | Auto-reject |
+
+Boundaries are inclusive at the upper edge: exactly `50.0` is `likely_real`. The defaults are 30 / 50 / 75, and a task type may use its own. Read the boundaries from `tagBoundaries` on each result rather than hard-coding them.
+
+## Example
+
+```json
+"result": {
+  "isFake": false,
+  "confidencePercent": 89.6,
+  "fakeConfidencePercent": 10.4,
+  "realConfidencePercent": 89.6,
+  "tag": "real",
+  "tagBoundaries": { "real": 30, "likelyReal": 50, "likelyFake": 75 },
+  "modelVersion": "v2.1.0"
+}
+```
+
+## Things to know
+
+- **Scores are specific to a model and its version.** A score of 60 from one task type is not comparable with 60 from another.
+- **Re-validate custom cutoffs after a model update.** When `modelVersion` changes, score distributions can shift. We give notice before model changes.
+- **Past results never change.** The tag and boundaries are stored with each job when it runs, so retuning boundaries later doesn't alter earlier results. Jobs that ran before these fields were introduced don't have `tag`, `tagBoundaries` or `modelVersion`, so treat all three as optional.
+- **A score near 50 is not a coin flip.** It means the model is uncertain. Treat the middle tags as review cases.
+- **Expect new fields.** Ignore fields you don't recognize; new ones can be added without notice.
+
+# Catalog
+
+All 12 task types are available on the cloud API; your plan decides which you can use. Pass the **ID** as `taskTypeId` when creating a job, and filter job lists by **slug** with `taskTypeSlug`.
+
+| ID | Slug | Name | Status | Use it to… | Accepted formats |
+|---|---|---|---|---|---|
+| 1 | [`ai-image-detection`](/api/task-types/ai-image-detection) | AI Image Detector | Active | Check whether an image was AI-generated | JPEG, PNG |
+| 2 | [`ai-audio-detection`](/api/task-types/ai-audio-detection) | AI Audio Detector | Active | Check whether audio is AI-generated or cloned | MP3, WAV, M4A |
+| 3 | [`ai-video-detection`](/api/task-types/ai-video-detection) | AI Video Detector | Active | Check whether a video was AI-generated | MP4, MOV |
+| 4 | [`faceswap-detection`](/api/task-types/faceswap-detection) | Face Swap Detection | Deprecated — use `ekyc-deepfake` | Earlier face-swap detector | MP4, MOV, WebM |
+| 5 | [`image-forgery-detection`](/api/task-types/image-forgery-detection) | Image Forgery Detection | Active | Find edited or tampered regions in a real image | JPEG, PNG |
+| 6 | [`document-intelligence`](/api/task-types/document-intelligence) | Document Forgery Detection | Active | Detect AI generation or tampering in a document image | JPEG, PNG |
+| 7 | [`face-liveness-detection`](/api/task-types/face-liveness-detection) | Face Liveness Detection | Active | Check a selfie is a live person, not a photo, screen or mask | JPEG, PNG |
+| 8 | [`face-intelligence`](/api/task-types/face-intelligence) | Face Intelligence | Active | Run face-swap and liveness checks in one job | JPEG, PNG, MP4, WebM, QuickTime |
+| 9 | [`face-embedding`](/api/task-types/face-embedding) | Face Embedding | Active | Get a face vector for your own matching (not a detector) | JPEG, PNG |
+| 10 | [`audio-splitter`](/api/task-types/audio-splitter) | Audio Splitter | Active | Separate voice from background audio (not a detector) | MP3, WAV, M4A |
+| 11 | [`ekyc-deepfake`](/api/task-types/ekyc-deepfake) | eKYC Deepfake Detection | Active — latest face-swap detector | Detect face swaps in any face video, including KYC selfies | MP4, MOV, WebM |
+| 12 | [`pdf-tampering-detection`](/api/task-types/pdf-tampering-detection) | PDF Tampering Detection | Active | Detect edits to a PDF; send `pageCount` | PDF |
+
+Every task type has a single input slot named `original`. On-prem deployments may expose a subset and use different IDs, so keep the slug as the identifier in your code and look up the ID per environment.
+
+## Choosing a task type
+
+Each model is tuned for one kind of manipulation, and a `real` result only covers what that model checks. To screen for more than one kind, run one job per model, for example `ai-image-detection` and `image-forgery-detection` on the same photo.
+
+| You want to know… | Use |
+|---|---|
+| Was this image made by an AI generator? | [`ai-image-detection`](/api/task-types/ai-image-detection) |
+| Was part of this real photo edited? | [`image-forgery-detection`](/api/task-types/image-forgery-detection) |
+| Is this face video a deepfake? | [`ekyc-deepfake`](/api/task-types/ekyc-deepfake) |
+| Was this whole video AI-generated? | [`ai-video-detection`](/api/task-types/ai-video-detection) |
+| Is this selfie a live person? | [`face-liveness-detection`](/api/task-types/face-liveness-detection) |
+| Is this voice cloned or synthetic? | [`ai-audio-detection`](/api/task-types/ai-audio-detection) |
+| Is this ID or document image fake or edited? | [`document-intelligence`](/api/task-types/document-intelligence) |
+| Was this PDF edited? | [`pdf-tampering-detection`](/api/task-types/pdf-tampering-detection) |

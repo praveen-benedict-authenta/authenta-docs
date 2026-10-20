@@ -1,0 +1,62 @@
+# Face Liveness Detection
+
+Checks that a selfie shows a live person, not a printed photo, a screen or a mask.
+
+| Slug | ID | Status | Tagged | Model version |
+|---|---|---|---|---|
+| `face-liveness-detection` | `7` | Active | Yes | `v2` |
+
+## What it detects
+
+| Detects | Does not detect |
+|---|---|
+| Presentation attacks: printed photos, screen replays and masks held up to the camera | AI-generated or face-swapped faces. Use [`ekyc-deepfake`](/api/task-types/ekyc-deepfake) or [`ai-image-detection`](/api/task-types/ai-image-detection) for those |
+
+## Request
+
+| Slot | Accepted `contentType` |
+|---|---|
+| `original` | `image/jpeg`, `image/png` |
+
+```json
+{
+  "taskTypeId": "7",
+  "inputs": [
+    { "slotName": "original", "fileName": "selfie.jpg", "contentType": "image/jpeg", "sizeBytes": 262144 }
+  ]
+}
+```
+
+See [Running a job](/api/reference/jobs#running-a-job) for the full create, upload and finalize flow.
+
+## Limits
+
+- File size: up to the account upload limit, 10 MB by default.
+- Send a photo where the face fills most of the frame; the image is scaled down to 224 × 224 pixels for analysis.
+
+## Result
+
+Uses the standard [result fields](/api/task-types#result-fields). Here "fake" means spoofed: `isFake` is `true` when the capture is not a live person.
+
+```json
+{
+  "isFake": true,
+  "confidencePercent": 89.96,
+  "fakeConfidencePercent": 89.96,
+  "realConfidencePercent": 10.04,
+  "tag": "fake",
+  "tagBoundaries": { "real": 30, "likelyReal": 50, "likelyFake": 75 },
+  "modelVersion": "v2"
+}
+```
+
+## Output artifacts
+
+| `kind` | File | Description |
+|---|---|---|
+| `result` | `result.json` | The liveness result |
+
+## Cost and availability
+
+- Fixed price per job, set by your plan. The exact amount is returned as `cost` when you create the job. See [Quotas & Credits](/api/quotas-and-credits).
+- Available on the cloud API; your plan decides which task types you can use.

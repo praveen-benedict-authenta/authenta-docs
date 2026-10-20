@@ -1,0 +1,106 @@
+# PDF Tampering Detection
+
+Checks each page of a PDF for edits and AI generation, and gives a verdict for the whole document.
+
+| Slug | ID | Status | Tagged | Model version |
+|---|---|---|---|---|
+| `pdf-tampering-detection` | `12` | Active | When a page was AI-checked | `v1` |
+
+## What it detects
+
+Each page is classified first, then checked:
+
+| Page | Check | Page verdict |
+|---|---|---|
+| A full-page scan with something added on top (visible text, annotations, filled shapes or an extra image) | The added items are marked | `EDITED` |
+| A full-page scan with nothing added | AI image check | `FAKE` if AI-generated, `REAL` if not |
+| Anything else (text, tables, logos or photos on a normal page) | Not checked | `OUT_OF_SCOPE` |
+
+It does **not** detect:
+
+- Pixel-level edits on a scan, such as Photoshop retouching with nothing added on top. These pages come out `REAL`.
+- Edits to native PDF text or tables. These pages are `OUT_OF_SCOPE`.
+- File-structure signs such as incremental saves or creator/producer mismatches.
+- Anything in encrypted PDFs, which are not analyzed.
+
+## Request
+
+| Slot | Accepted `contentType` |
+|---|---|
+| `original` | `application/pdf` |
+
+Send the PDF's page count as `pageCount`. It is required, and it sets the job's cost.
+
+```json
+{
+  "taskTypeId": "12",
+  "inputs": [
+    { "slotName": "original", "fileName": "agreement.pdf", "contentType": "application/pdf", "sizeBytes": 734003, "pageCount": 3 }
+  ]
+}
+```
+
+See [Running a job](/api/reference/jobs#running-a-job) for the full create, upload and finalize flow.
+
+## Limits
+
+- File size: up to the account upload limit, 10 MB by default.
+- Encrypted PDFs are not analyzed.
+
+## Result
+
+| Field | Type | Description |
+|---|---|---|
+| `verdict` | string | Document verdict; see below |
+| `isFake` | boolean | `true` when `verdict` is `TAMPERED` |
+| `totalPages` | integer | Pages analyzed |
+| `fakePages` | integer | Pages the AI check found AI-generated (`FAKE`) |
+| `editedPages` | integer | Pages with content added on top of a scan |
+| `scannedPages` | integer | Pages that are full-page scans |
+| `outOfScopePages` | integer | Pages that weren't checked |
+| `aiCheckFailedPages` | integer | Scanned pages where the AI check couldn't run |
+| `confidencePercent`, `fakeConfidencePercent`, `realConfidencePercent`, `tag`, `tagBoundaries` | | Present when at least one page went through the AI check; see [result fields](/api/task-types#result-fields) |
+| `modelVersion` | string | Version of the model that produced the result |
+
+| `verdict` | When |
+|---|---|
+| `TAMPERED` | At least one page is `FAKE` or `EDITED` |
+| `AUTHENTIC` | No tampered pages, and at least one page is `REAL` |
+| `UNDETERMINED` | No tampered or authentic pages, and the AI check couldn't run on at least one page |
+| `OUT_OF_SCOPE` | Every page is `OUT_OF_SCOPE` |
+
+```json
+{
+  "isFake": true,
+  "verdict": "TAMPERED",
+  "confidencePercent": 82.9,
+  "fakeConfidencePercent": 82.9,
+  "realConfidencePercent": 17.1,
+  "tag": "fake",
+  "tagBoundaries": { "real": 30, "likelyReal": 50, "likelyFake": 75 },
+  "totalPages": 1,
+  "fakePages": 1,
+  "editedPages": 0,
+  "scannedPages": 1,
+  "outOfScopePages": 0,
+  "aiCheckFailedPages": 0,
+  "modelVersion": "v1"
+}
+```
+
+Use `verdict` to decide what to do with the document; an `OUT_OF_SCOPE` or `UNDETERMINED` document was not verified either way.
+
+## Output artifacts
+
+| `kind` | File | Description |
+|---|---|---|
+| `result` | `result.json` | Document verdict, page counts, SHA3-256 / MD5 hashes and file metadata |
+| `result` | `result_N.json` | One per page: page verdict, the reason, any added items with their positions, and confidence |
+| `heatmap` | `heatmap_N.png` | One per page where available: AI heatmap for scanned pages, added items marked in red for `EDITED` pages, or a plain render for `OUT_OF_SCOPE` pages |
+
+Download them from `artifacts` on [`GET /jobs/{id}`](/api/reference/jobs#downloading-files).
+
+## Cost and availability
+
+- Priced per page: the per-page price set by your plan × `pageCount`. The exact amount is returned as `cost` when you create the job. See [Quotas & Credits](/api/quotas-and-credits).
+- Available on the cloud API; your plan decides which task types you can use.

@@ -1,0 +1,25 @@
+# Changelog
+
+Changes to the Authenta API that affect integrations: new fields, deprecations and model version changes. Changes within `/api/v1` are additive unless an entry says otherwise, so ignore result fields you don't recognize.
+
+## October 2026
+
+### New result fields: `tag`, `tagBoundaries` and `modelVersion`
+
+Scored detection results now include:
+
+- **`tag`**: `real`, `likely_real`, `likely_fake` or `fake`, derived from `fakeConfidencePercent`.
+- **`tagBoundaries`**: the boundaries that produced the tag for this job, e.g. `{ "real": 30, "likelyReal": 50, "likelyFake": 75 }`.
+- **`modelVersion`**: the version of the model that produced the result.
+
+`fakeConfidencePercent` and `realConfidencePercent` are now returned by every scored task type, not just some. `isFake` is `true` when the tag is `likely_fake` or `fake`.
+
+Nothing existing is renamed or removed. Jobs that ran before this change don't have the new fields. See [Reading results](/api/task-types#reading-results).
+
+### Task type reference pages
+
+Every task type now has its own page with its inputs, limits, result fields, artifacts and cost. Start from [Task Types](/api/task-types).
+
+### `faceswap-detection` deprecated
+
+`faceswap-detection` (task type `4`) is deprecated in favor of [`ekyc-deepfake`](/api/task-types/ekyc-deepfake) (task type `11`). It keeps working for now; its sunset date will be announced here in advance. After that date, creating a `faceswap-detection` job will return an error. See the [migration steps](/api/task-types/faceswap-detection#migrating-to-ekyc-deepfake).

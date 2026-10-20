@@ -1,0 +1,81 @@
+# AI Audio Detector
+
+Checks whether speech in an audio clip is AI-generated or voice-cloned.
+
+| Slug | ID | Status | Tagged | Model version |
+|---|---|---|---|---|
+| `ai-audio-detection` | `2` | Active | Yes | `v2-MILE-Ensemble` |
+
+## What it detects
+
+| Detects | Does not detect |
+|---|---|
+| AI-generated or voice-cloned speech | Background-noise editing, simple splicing of real recordings, or non-speech AI-generated sounds |
+
+The clip is analyzed in 4-second windows, and the overall score combines them.
+
+## Request
+
+| Slot | Accepted `contentType` |
+|---|---|
+| `original` | `audio/mpeg`, `audio/wav`, `audio/m4a` |
+
+```json
+{
+  "taskTypeId": "2",
+  "inputs": [
+    { "slotName": "original", "fileName": "call.mp3", "contentType": "audio/mpeg", "sizeBytes": 1048576 }
+  ]
+}
+```
+
+See [Running a job](/api/reference/jobs#running-a-job) for the full create, upload and finalize flow.
+
+## Limits
+
+- File size: up to the account upload limit, 10 MB by default.
+
+## Result
+
+Uses the standard [result fields](/api/task-types#result-fields), plus:
+
+| Field | Type | Description |
+|---|---|---|
+| `windows` | object | One entry per 4-second window, keyed by time range (e.g. `"0-4s"`). Each has `RealConfidencePercent`, the real confidence (0–100) for that window |
+
+Each window entry, and the result itself, also has a `spectrogram` path. These paths are internal and can't be downloaded; use the `image` artifacts instead.
+
+```json
+{
+  "isFake": false,
+  "confidencePercent": 54.18,
+  "fakeConfidencePercent": 45.82,
+  "realConfidencePercent": 54.18,
+  "tag": "likely_real",
+  "tagBoundaries": { "real": 30, "likelyReal": 50, "likelyFake": 75 },
+  "modelVersion": "v2-MILE-Ensemble",
+  "windows": {
+    "0-4s": { "RealConfidencePercent": 15.62, "spectrogram": "/app/jobs/560/output/spectrogram_window_0.png" },
+    "4-8s": { "RealConfidencePercent": 98.02, "spectrogram": "/app/jobs/560/output/spectrogram_window_1.png" },
+    "8-12s": { "RealConfidencePercent": 15.29, "spectrogram": "/app/jobs/560/output/spectrogram_window_2.png" }
+  },
+  "spectrogram": "/app/jobs/560/output/spectrogram.png"
+}
+```
+
+Low window scores show where in the clip the model found synthetic speech.
+
+## Output artifacts
+
+| `kind` | File | Description |
+|---|---|---|
+| `result` | `result.json` | Full result with the raw probabilities |
+| `image` | `spectrogram.png` | Spectrogram of the whole clip with per-window confidence overlays |
+| `image` | `spectrogram_window_N.png` | One spectrogram per 4-second window (`metadata.window` gives the time range) |
+
+Download them from `artifacts` on [`GET /jobs/{id}`](/api/reference/jobs#downloading-files).
+
+## Cost and availability
+
+- Fixed price per job, set by your plan. The exact amount is returned as `cost` when you create the job. See [Quotas & Credits](/api/quotas-and-credits).
+- Available on the cloud API; your plan decides which task types you can use.

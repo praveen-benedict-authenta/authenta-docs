@@ -1,0 +1,86 @@
+# Document Forgery Detection
+
+Checks a photo or scan of a document, such as an ID card, certificate or contract, for AI generation and for edited content.
+
+| Slug | ID | Status | Tagged | Model version |
+|---|---|---|---|---|
+| `document-intelligence` | `6` | Active | When AI-generated | `v1` |
+
+## What it detects
+
+The document is checked in two stages:
+
+1. **AI generation.** If the document image is AI-generated, the job stops here.
+2. **Tampering.** Otherwise, the image is checked for edited regions such as altered text or fields.
+
+| Detects | Does not detect |
+|---|---|
+| AI-generated document images, then edited regions such as altered text or fields | Changes made only in the document's underlying digital file. For PDFs, use [`pdf-tampering-detection`](/api/task-types/pdf-tampering-detection) |
+
+## Request
+
+| Slot | Accepted `contentType` |
+|---|---|
+| `original` | `image/jpeg`, `image/png` |
+
+```json
+{
+  "taskTypeId": "6",
+  "inputs": [
+    { "slotName": "original", "fileName": "id-card.jpg", "contentType": "image/jpeg", "sizeBytes": 524288 }
+  ]
+}
+```
+
+See [Running a job](/api/reference/jobs#running-a-job) for the full create, upload and finalize flow.
+
+## Limits
+
+- File size: up to the account upload limit, 10 MB by default.
+
+## Result
+
+| Field | Type | Description |
+|---|---|---|
+| `isFake` | boolean | `true` if the document image is AI-generated |
+| `isTampered` | boolean \| null | Whether edited regions were found; `null` when the document is AI-generated, since the tampering check doesn't run |
+| `confidencePercent`, `fakeConfidencePercent`, `realConfidencePercent`, `tag`, `tagBoundaries` | | Present only when the document is AI-generated; see [result fields](/api/task-types#result-fields) |
+| `modelVersion` | string | Version of the model that produced the result |
+
+AI-generated document:
+
+```json
+{
+  "isFake": true,
+  "isTampered": null,
+  "confidencePercent": 91.2,
+  "fakeConfidencePercent": 91.2,
+  "realConfidencePercent": 8.8,
+  "tag": "fake",
+  "tagBoundaries": { "real": 30, "likelyReal": 50, "likelyFake": 75 },
+  "modelVersion": "v1"
+}
+```
+
+Real document, checked for tampering:
+
+```json
+{ "isFake": false, "isTampered": false, "modelVersion": "v1" }
+```
+
+Treat the document as suspect if `isFake` **or** `isTampered` is `true`.
+
+## Output artifacts
+
+| `kind` | File | Description |
+|---|---|---|
+| `result` | `result.json` | Combined result of both stages |
+| `heatmap` | `heatmap.png` | When AI-generated: overlay showing where the model saw AI patterns |
+| `heatmap` | `mask.png` | When checked for tampering: color map of how likely each region is edited |
+
+Download them from `artifacts` on [`GET /jobs/{id}`](/api/reference/jobs#downloading-files).
+
+## Cost and availability
+
+- Fixed price per job, set by your plan. The exact amount is returned as `cost` when you create the job. See [Quotas & Credits](/api/quotas-and-credits).
+- Available on the cloud API; your plan decides which task types you can use.

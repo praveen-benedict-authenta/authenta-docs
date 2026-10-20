@@ -1,0 +1,46 @@
+# Audio Splitter
+
+Separates an audio clip into two tracks: the foreground (voice) and the background. Use it to isolate speech before analysis or review. This is a utility, not a detector: it gives no real or fake verdict.
+
+| Slug | ID | Status | Tagged | Model version |
+|---|---|---|---|---|
+| `audio-splitter` | `10` | Active | No | Not reported |
+
+## Request
+
+| Slot | Accepted `contentType` |
+|---|---|
+| `original` | `audio/mpeg`, `audio/wav`, `audio/m4a` |
+
+```json
+{
+  "taskTypeId": "10",
+  "inputs": [
+    { "slotName": "original", "fileName": "call.wav", "contentType": "audio/wav", "sizeBytes": 2097152 }
+  ]
+}
+```
+
+See [Running a job](/api/reference/jobs#running-a-job) for the full create, upload and finalize flow.
+
+## Limits
+
+- File size: up to the account upload limit, 10 MB by default.
+
+## Result
+
+The separated tracks are delivered as files, not in `result`. `result` holds `foreground` and `background` paths that are internal to the worker and can't be downloaded; use the artifacts below.
+
+## Output artifacts
+
+| `kind` | `contentType` | `metadata.type` | Description |
+|---|---|---|---|
+| `audio` | `audio/wav` | `foreground` | The voice track |
+| `audio` | `audio/wav` | `background` | Everything else |
+
+Download them from `artifacts` on [`GET /jobs/{id}`](/api/reference/jobs#downloading-files), picking each track by `metadata.type`.
+
+## Cost and availability
+
+- Fixed price per job, set by your plan. The exact amount is returned as `cost` when you create the job. See [Quotas & Credits](/api/quotas-and-credits).
+- Available on the cloud API; your plan decides which task types you can use.

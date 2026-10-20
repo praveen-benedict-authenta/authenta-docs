@@ -1,0 +1,65 @@
+# eKYC Deepfake Detection
+
+Detects face swaps in a face video. This is the latest face-swap detector and the recommended choice for identity verification (KYC) selfie videos, as well as any other video of a face.
+
+| Slug | ID | Status | Tagged | Model version |
+|---|---|---|---|---|
+| `ekyc-deepfake` | `11` | Active | Yes | `v4` |
+
+It replaces [`faceswap-detection`](/api/task-types/faceswap-detection), which is deprecated.
+
+## What it detects
+
+| Detects | Does not detect |
+|---|---|
+| Face-swapped and deepfaked faces in video, including eKYC selfie captures | Fully AI-generated scenes (use [`ai-video-detection`](/api/task-types/ai-video-detection)), or printed photos and screens held up to the camera (use [`face-liveness-detection`](/api/task-types/face-liveness-detection)) |
+
+Accuracy can drop on heavily compressed or low-resolution video, and on footage where the face is small or hidden.
+
+## Request
+
+| Slot | Accepted `contentType` |
+|---|---|
+| `original` | `video/mp4`, `video/mov`, `video/webm` |
+
+```json
+{
+  "taskTypeId": "11",
+  "inputs": [
+    { "slotName": "original", "fileName": "kyc-selfie.mp4", "contentType": "video/mp4", "sizeBytes": 3145728 }
+  ]
+}
+```
+
+See [Running a job](/api/reference/jobs#running-a-job) for the full create, upload and finalize flow.
+
+## Limits
+
+- File size: up to the account upload limit, 10 MB by default.
+
+## Result
+
+Uses the standard [result fields](/api/task-types#result-fields).
+
+```json
+{
+  "isFake": false,
+  "confidencePercent": 74.45,
+  "fakeConfidencePercent": 25.55,
+  "realConfidencePercent": 74.45,
+  "tag": "real",
+  "tagBoundaries": { "real": 30, "likelyReal": 50, "likelyFake": 75 },
+  "modelVersion": "v4"
+}
+```
+
+## Output artifacts
+
+| `kind` | File | Description |
+|---|---|---|
+| `result` | `result.json` | The result |
+
+## Cost and availability
+
+- Fixed price per job, set by your plan. The exact amount is returned as `cost` when you create the job. See [Quotas & Credits](/api/quotas-and-credits).
+- Available on the cloud API; your plan decides which task types you can use.
