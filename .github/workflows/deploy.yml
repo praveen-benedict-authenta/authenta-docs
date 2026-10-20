@@ -24,7 +24,7 @@ jobs:
 
       - name: Build the application
         env:
-          DEV_EXPLORER_IPS: ${{ secrets.DEV_EXPLORER_IPS }}
+          DEV_EXPLORER_KEYS: ${{ secrets.DEV_EXPLORER_KEYS }}
         run: |
           bun install --frozen-lockfile
           npm run build
