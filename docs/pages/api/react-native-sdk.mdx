@@ -47,6 +47,12 @@ npm install @authenta/core
 
 # Authentication & Initialization
 
+:::danger
+**Do not ship your API key inside a production app.** Anything bundled into an app can be extracted from the installed package, and a leaked key can read every job on your account, download uploaded media such as selfies and ID documents, and spend your credits.
+
+Send captures to your own backend and create Authenta jobs from there; see [Keeping keys safe](/api/managing-api-keys#keeping-keys-safe).
+:::
+
 Create an `AuthentaClient` instance.
 
 ```typescript

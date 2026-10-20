@@ -32,11 +32,12 @@ pip install -e .
 To use the SDK, you must initialize the `AuthentaClient` with your API key:
 
 ```python
+import os
 from authenta import AuthentaClient
 
 client = AuthentaClient(
     base_url="https://platform.authenta.ai",
-    api_key="api__xxxxxxxx...",
+    api_key=os.environ["AUTHENTA_API_KEY"],
 )
 ```
 

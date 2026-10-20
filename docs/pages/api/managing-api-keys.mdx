@@ -21,7 +21,7 @@ Here you will see:
 
 - A list of your existing keys
 - Their permissions
-- Usage per key
+- When each key was last used
 - Options to create or revoke keys
 
 If you have no keys yet, you will see a **Create API Key** button.
@@ -38,25 +38,20 @@ A label used to help you identify the purpose of the key.
 Examples:
 
 - `Backend-Server-Key`
-- `Mobile-App-Key`
+- `Batch-Jobs-Key`
 - `Video-Pipeline-Key`
 
 ### 2. Permissions
 
 Authenta supports the following permission types:
 
-| Permission | Allows                                   |
-| ---------- | ---------------------------------------- |
-| **Read**   | Fetching media, viewing metadata (`GET`) |
-| **Write**  | Uploading media (`POST`)                 |
-| **Delete** | Removing media (`DELETE`)                |
+| Permission | Allows |
+| ---------- | ------ |
+| **Read**   | `GET /jobs`, `GET /jobs/{id}`: list jobs, read results, download files |
+| **Write**  | `POST /jobs`, `POST /jobs/{id}/finalize`: create and run jobs (spends credits) |
+| **Delete** | `POST /jobs/{id}/cancel`, `DELETE /jobs/{id}`: cancel and delete jobs |
 
-Permissions restrict which API operations a key may perform.  
-If a key does not have the required permission, requests will return:
-
-```
-403 — Forbidden (You are not authorized)
-```
+Permissions restrict which API operations a key may perform. A request the key isn't allowed to make returns `403` `FORBIDDEN`.
 
 ## Viewing API Keys
 
@@ -101,10 +96,8 @@ If a key is no longer needed:
 
 Revoking a key:
 
-- Immediately invalidates both API Key
-- Prevents all further requests using that key
-- Does not delete historical usage or logs
-- Frees the key from active use (optional depending on UI behavior)
+- Immediately invalidates the key; further requests with it return `401` `INVALID_API_KEY`
+- Does not delete the jobs created with it, or your usage history
 
 You may revoke a key at any time for security or cleanup purposes.
 
@@ -119,8 +112,8 @@ Never hard-code secrets into your source code.
 
 ### 🚫 2. Do Not Share API Keys
 
-Keys are tied to your **user account**.  
-Sharing keys means sharing access to your quota and credits.
+Anyone holding a key can act on your account: read every job and its media, and spend your credits.
+Give each person or system its own key instead.
 
 ### 🔄 3. Rotate Keys Regularly
 
@@ -136,15 +129,25 @@ Examples:
 
 This gives you fine-grained control and safer isolation.
 
-### 📉 5. Monitor Quota Usage
+### 📉 5. Monitor Usage
 
-Regularly review how your keys consume:
+Check each key's last-used date in **Settings → API Keys**, and your credit spend in **Settings → Billing**. Revoke keys you no longer use.
 
-- Query quota
-- Mutation quota
-- Credits (for media processing)
+## Keeping keys safe
 
-If your integrations grow, consider increasing your user-level quota.
+An API key is a long-lived secret with access to every job on your account. **Only use it from servers you control.**
+
+:::danger
+Never embed an API key in a mobile app, a browser app, or any other code that runs on a user's device. Keys in an app package or web bundle can be extracted, and a leaked key can read every job on your account, download the uploaded media (for example KYC selfies) and spend your credits.
+:::
+
+For apps that capture media on a device, send the media to **your own backend** and call Authenta from there:
+
+1. The app uploads the capture to your backend, authenticated with your own user session.
+2. Your backend creates the Authenta job with its API key, uploads the file and finalizes the job.
+3. Your backend polls for the result and returns only what the app needs, for example the verdict.
+
+If you suspect a key has leaked, [regenerate](#regenerating-the-api-key) or [revoke](#revoking-an-api-key) it immediately.
 
 ## Next Steps
 

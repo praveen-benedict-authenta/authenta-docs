@@ -1,143 +1,70 @@
-## Concepts Overview
+# Quotas & Credits
 
-### Credits
+Authenta bills media analysis in **credits**. Credits are shared between the web console and the API, and every job costs a fixed number of credits that you can see before it runs.
 
-Credits represent your ability to **process media** (for example, analyzing videos).
+# What costs credits
 
-Key points:
+Only creating a job costs credits. Reading, listing, cancelling and deleting jobs, and uploading files to storage, are free.
 
-- Processing media **via API** consumes credits
-- Processing media **via UI** also consumes credits
-- Credits are shared between UI and API usage
-- Non-processing operations (like fetching metadata) do **not** consume credits
-- There are no API call quotas — you can make unlimited requests, but media processing is limited by credit balance
+| Request | Credits |
+|---|---|
+| `POST /jobs` | The job's `cost`, charged when the job is created |
+| `POST /jobs/{id}/finalize` | Free |
+| `GET /jobs`, `GET /jobs/{id}` | Free |
+| `POST /jobs/{id}/cancel`, `DELETE /jobs/{id}` | Free, and refund the job if it hadn't started processing |
+| `PUT` to an `uploadUrl` | Free |
 
-## API Calls vs Credit Consumption
+## How a job's cost is set
 
-With the new API key system, there are no limits on the number of API calls you can make:
+A job's cost depends on the task type, not on the file size:
 
-- **Read operations** (e.g., `GET` requests) → Unlimited, no credits consumed
-- **Write operations** (e.g., `POST`, `PUT`, `DELETE`) → Unlimited API calls, but **media processing consumes credits**
+- **Most task types** have a fixed price per job, set by your plan.
+- **`pdf-tampering-detection`** is priced per page: the per-page price × the `pageCount` you send.
+- **`face-intelligence`** is the sum of the checks you enable: faceswap 60, liveness 30, similarity 30.
 
-Your account balance is the limiting factor for media processing operations, not API call quotas.
+The `cost` field on the job (returned by `POST /jobs`) is the exact amount charged.
 
-# Error Codes Related to Credits
+# When credits are charged and refunded
 
-Authenta uses structured error objects with a code, statusCode, and message.
+Credits are charged **once, when the job is created** (`POST /jobs`). If your balance is too low, the job isn't created and nothing is charged.
 
-Here are the relevant errors for credit issues.
+The full cost is refunded automatically when:
 
-## ❌ INSUFFICIENT_BALANCE — Insufficient Credits
+| Event | Refunded |
+|---|---|
+| You cancel the job (`initiated` or `queued`) | Yes |
+| You delete the job before it starts processing | Yes |
+| The job is never finalized and its files never arrive (cleaned up after about 20 minutes) | Yes |
+| The job fails after its automatic retries | Yes |
+| The job completes | No |
+| You delete a completed or failed job | No (a failed job was already refunded) |
 
-Returned when a request attempts to process media (e.g., uploading a video) but the user has insufficient credits.
+Your credit history in **Settings → Billing** shows each charge and refund.
 
-| Field          | Value                                                      |
-| -------------- | ---------------------------------------------------------- |
-| **code**       | `INSUFFICIENT_BALANCE`                                     |
-| **statusCode** | `402`                                                      |
-| **message**    | `Insufficient balance. Please top up or enable pay-as-you-go billing` |
+# Pay-as-you-go
 
-### Example Response
+If pay-as-you-go is enabled on your account, jobs keep running when your credit balance runs out, and the usage is billed monthly up to your monthly limit. When the limit is reached, `POST /jobs` returns `402` `PAYG_LIMIT_REACHED`.
 
-```json
-{
-  "code": "INSUFFICIENT_BALANCE",
-  "statusCode": 402,
-  "message": "Insufficient balance. Please top up or enable pay-as-you-go billing"
-}
-```
+# Request limits
 
-## When Are Credits Consumed?
+There's currently no per-key quota on the number of API requests. Keep polling to every 3–5 seconds per job; limits may be introduced later, and when they are they'll be documented here with the error they return.
 
-Credits are consumed when a job is finalized and processed, typically:
+# Credit errors
 
-- Finalizing a job for analysis (e.g., `POST /api/v1/jobs/{id}/finalize`)
-- Any operation that triggers a detection run or similar computation
+Both errors come from `POST /jobs`, use the [standard error shape](/api/reference/jobs#errors), and mean nothing was charged.
 
-Operations like:
+| Status | `name` | Meaning | What to do |
+|---|---|---|---|
+| `402` | `INSUFFICIENT_BALANCE` | Not enough credits, and pay-as-you-go is off | Top up in **Settings → Billing**, then retry |
+| `402` | `PAYG_LIMIT_REACHED` | The monthly pay-as-you-go limit is reached | Raise the limit or wait for the next billing month |
 
-- Creating a job (`POST /api/v1/jobs`)
-- Listing jobs (`GET /api/v1/jobs`)
-- Fetching a single job (`GET /api/v1/jobs/{id}`)
-- Deleting a job (`DELETE /api/v1/jobs/{id}`)
-- Cancelling a job before it starts processing (`POST /api/v1/jobs/{id}/cancel`)
+Don't retry these errors in a loop: they won't succeed until the balance or limit changes. Alert your team instead.
 
-do **not** consume credits.
+# Monitoring usage
 
-> ⚠️ API calls are unlimited. Credits are only consumed when a job is **finalized and processed**.
+**Settings → Billing** shows your current balance, pay-as-you-go usage, and the history of charges and refunds. If you run batch pipelines, check the balance before a large batch so it doesn't stop halfway.
 
-### Example Scenarios
+# Next steps
 
-| Situation                                    | Credits | Result                                                             |
-| -------------------------------------------- | ------- | ------------------------------------------------------------------ |
-| Finalize job, credits OK                     | ✅      | Request succeeds, job is queued for processing                     |
-| Finalize job, credits insufficient           | ❌      | `INSUFFICIENT_BALANCE` (402) - Insufficient balance message |
-| GET jobs list                                | ✅/❌   | Request succeeds (no credits needed)                              |
-| DELETE job                                   | ✅/❌   | Request succeeds (no credits needed)                              |
-
-## Monitoring Usage
-
-From the **Settings → Billing** section, you can typically see:
-
-- Your **current credit balance**
-- Your **credit usage history**
-- Your **API key** usage statistics
-
-Use this view to:
-
-- Check your remaining credits
-- Plan credit top-ups or plan changes (depending on your billing model)
-- Review API activity across your keys
-
-## Managing Credits
-
-If you're running low on credits:
-
-1. Go to **Settings → Billing**
-2. Review your credit balance and usage
-3. Top up your credits or upgrade your plan
-
-Unlike quotas, there's no approval process — credits are immediately available after purchase.
-
-## Best Practices
-
-### 1. Separate environments with separate keys
-
-Use different API keys for:
-
-- Production
-- Staging
-- Testing / CI
-
-This makes your usage patterns easier to understand and track.
-
-### 2. Monitor credit balance
-
-If you run batch jobs or pipelines, watch credits closely to avoid partially processed datasets.
-
-### 3. Handle insufficient credit errors
-
-Handle `INSUFFICIENT_BALANCE` in your code:
-
-- Log the error
-- Notify your team to top up credits
-- Implement retry logic with backoff
-
-### 4. Review usage regularly
-
-Check your API key usage and credit consumption regularly to plan budget and scaling.
-
-## Summary
-
-- No API call quotas — make unlimited requests to the API  
-- Credits are consumed only when processing media files
-- Each media file operation consumes a variable number of credits (based on file size and operation type)
-- Monitor your credit balance regularly via Settings → Billing
-- Failed operations after `INSUFFICIENT_BALANCE` error don't consume credits
-- Use separate API keys for production, staging, and testing environments
-
-## Next Steps
-
-- [Learn how to **authenticate and call the API**](/api/authentication)
-- [See practical request examples](/api/making-api-calls)
-- [Explore the Jobs API endpoints](/api/reference/jobs)
+- [Making API Calls](/api/making-api-calls)
+- [Jobs API Reference](/api/reference/jobs)
