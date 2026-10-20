@@ -20,8 +20,6 @@ info:
 servers:
   - url: https://platform.authenta.ai/api/v1
     description: Authenta cloud
-  - url: https://platform-dev.authenta.ai/api/v1
-    description: Authenta cloud (development) — use an API key created on platform-dev.authenta.ai
 
 tags:
   - name: Upload workflow
