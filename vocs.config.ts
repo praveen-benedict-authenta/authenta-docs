@@ -1,16 +1,16 @@
 import { createHash } from 'node:crypto';
 import { defineConfig } from 'vocs';
 
-/** Comma-separated IPs from the DEV_EXPLORER_IPS secret; only their hashes reach the site (see docs/components/internal-access.ts) */
-const devExplorerIpHashes = (process.env.DEV_EXPLORER_IPS ?? '')
+/** Comma-separated keys from the DEV_EXPLORER_KEYS secret; only their hashes reach the site (see docs/components/dev-access.ts) */
+const devExplorerKeyHashes = (process.env.DEV_EXPLORER_KEYS ?? '')
   .split(',')
-  .map(ip => ip.trim())
+  .map(key => key.trim())
   .filter(Boolean)
-  .map(ip => createHash('sha256').update(ip).digest('hex'));
+  .map(key => createHash('sha256').update(key).digest('hex'));
 
 export default defineConfig({
   vite: {
-    define: { __DEV_EXPLORER_IP_HASHES__: JSON.stringify(devExplorerIpHashes) },
+    define: { __DEV_EXPLORER_KEY_HASHES__: JSON.stringify(devExplorerKeyHashes) },
   },
   logoUrl: '/logo.png',
   title: 'Authenta Docs',

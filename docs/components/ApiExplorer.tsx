@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import 'swagger-ui-dist/swagger-ui.css';
 
-import { isInternalVisitor } from './internal-access';
+import { hasDevAccess } from './dev-access';
 
 /** Spec served from docs/public */
 const SPEC_URL = '/openapi/authenta-api.yaml';
 const STORAGE_KEY = 'authenta-api-explorer';
 const DEV_STORAGE_KEY = 'authenta-api-explorer-dev';
-/** Added to the Servers dropdown only for allow-listed IPs that turn the toggle on (see internal-access.ts) */
+/** Added to the Servers dropdown only in unlocked browsers that turn the toggle on (see dev-access.ts) */
 const DEV_SERVER = {
   url: 'https://platform-dev.authenta.ai/api/v1',
   description: 'Authenta cloud (development) — use an API key created on platform-dev.authenta.ai',
@@ -193,7 +193,7 @@ export function ApiExplorer() {
     };
 
     let cancelled = false;
-    isInternalVisitor().then(allowed => {
+    hasDevAccess().then(allowed => {
       if (cancelled || !allowed) return;
       setShowDevToggle(true);
       if (loadDevEnabled()) toggleDev(true);
@@ -212,7 +212,7 @@ export function ApiExplorer() {
           displayRequestDuration: true,
           requestInterceptor,
           responseInterceptor,
-          /** The IP check can finish before the spec loads, so add the dev server once it has */
+          /** The unlock check can finish before the spec loads, so add the dev server once it has */
           onComplete: () => {
             if (devEnabledRef.current) applyDevServer(true);
           },
