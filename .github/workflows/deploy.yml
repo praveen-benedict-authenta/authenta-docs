@@ -23,6 +23,8 @@ jobs:
           node-version: '24.x'
 
       - name: Build the application
+        env:
+          DEV_EXPLORER_IPS: ${{ secrets.DEV_EXPLORER_IPS }}
         run: |
           bun install --frozen-lockfile
           npm run build
