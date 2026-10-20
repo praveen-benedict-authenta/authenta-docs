@@ -118,31 +118,57 @@ components:
         result:
           type: object
           nullable: true
-          description: Set once `status` is `completed` (or describes the failure when `failed`). Shape depends on the task type.
-          anyOf:
-            - title: Fake detection (image / audio / video)
-              type: object
-              properties:
-                isFake:
-                  type: boolean
-                confidence:
-                  type: number
-            - title: Forgery detection
-              type: object
-              properties:
-                isTampered:
-                  type: boolean
-                confidence:
-                  type: number
-            - title: Face-swap detection
-              type: object
-              properties:
-                isDeepfake:
-                  type: boolean
-                totalFaces:
-                  type: integer
-                deepfakeFaces:
-                  type: integer
+          description: Set once `status` is `completed`; `null` until then and for failed jobs. Every detection result has `isFake`; other fields depend on the task type, and new fields can be added at any time. See [Result shapes](/api/reference/jobs#result-shapes).
+          additionalProperties: true
+          properties:
+            isFake:
+              type: boolean
+              description: The verdict. `true` when `tag` is `likely_fake` or `fake`.
+            confidencePercent:
+              type: number
+              example: 89.6
+              description: Confidence (0-100) in the verdict that `isFake` reports.
+            fakeConfidencePercent:
+              type: number
+              example: 10.4
+              description: Confidence (0-100) that the media is fake. Only on some task types.
+            realConfidencePercent:
+              type: number
+              example: 89.6
+              description: Confidence (0-100) that the media is real. Only on some task types.
+            tag:
+              type: string
+              enum: [real, likely_real, likely_fake, fake]
+              description: Confidence tier computed from `fakeConfidencePercent` and `tagBoundaries`. Absent on jobs that ran before tags were introduced.
+            tagBoundaries:
+              $ref: '#/components/schemas/TagBoundaries'
+            modelVersion:
+              type: string
+              example: "v2.1.0"
+              description: Version of the model that produced the result. Absent on older jobs.
+            isTampered:
+              type: boolean
+              description: "`document-intelligence` only."
+            totalFaces:
+              type: integer
+              description: "`faceswap-detection` only: faces detected."
+            deepFakes:
+              type: integer
+              description: "`faceswap-detection` only: detected faces that are face-swapped."
+
+    TagBoundaries:
+      type: object
+      description: Upper `fakeConfidencePercent` bound of each tier, as used for this job. Above `likelyFake` the tag is `fake`. Absent on older jobs.
+      properties:
+        real:
+          type: number
+          example: 30
+        likelyReal:
+          type: number
+          example: 50
+        likelyFake:
+          type: number
+          example: 75
 
     UploadTarget:
       type: object
