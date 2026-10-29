@@ -70,7 +70,7 @@ All 12 task types are available on the cloud API; your plan decides which you ca
 | 9 | [`face-embedding`](/api/task-types/face-embedding) | Face Embedding | Active | Get a face vector for your own matching (not a detector) | JPEG, PNG |
 | 10 | [`audio-splitter`](/api/task-types/audio-splitter) | Audio Splitter | Active | Separate voice from background audio (not a detector) | MP3, WAV, M4A |
 | 11 | [`ekyc-deepfake`](/api/task-types/ekyc-deepfake) | eKYC Deepfake Detection | Active — latest face-swap detector | Detect face swaps in any face video, including KYC selfies | MP4, MOV, WebM |
-| 12 | [`pdf-tampering-detection`](/api/task-types/pdf-tampering-detection) | PDF Tampering Detection | Active | Detect edits to a PDF; send `pageCount` | PDF |
+| 13 | [`pdf-tampering-detection`](/api/task-types/pdf-tampering-detection) | PDF Tampering Detection | Active | Detect edits to a PDF; send `pageCount` | PDF |
 
 Every task type has a single input slot named `original`. On-prem deployments may expose a subset and use different IDs, so keep the slug as the identifier in your code and look up the ID per environment.
 
