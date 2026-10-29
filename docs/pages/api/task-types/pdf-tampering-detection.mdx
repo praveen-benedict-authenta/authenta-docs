@@ -4,7 +4,7 @@ Checks each page of a PDF for edits and AI generation, and gives a verdict for t
 
 | Slug | ID | Status | Tagged | Model version |
 |---|---|---|---|---|
-| `pdf-tampering-detection` | `12` | Active | When a page was AI-checked | `v1` |
+| `pdf-tampering-detection` | `13` | Active | When a page was AI-checked | `v1` |
 
 ## What it detects
 
@@ -33,7 +33,7 @@ Send the PDF's page count as `pageCount`. It is required, and it sets the job's 
 
 ```json
 {
-  "taskTypeId": "12",
+  "taskTypeId": "13",
   "inputs": [
     { "slotName": "original", "fileName": "agreement.pdf", "contentType": "application/pdf", "sizeBytes": 734003, "pageCount": 3 }
   ]
